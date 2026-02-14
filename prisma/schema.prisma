@@ -1,0 +1,262 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id               String            @id @default(uuid())
+  email            String            @unique
+  role             UserRole          @default(OWNER)
+  createdAt        DateTime          @default(now()) @map("created_at")
+  updatedAt        DateTime          @updatedAt @map("updated_at")
+  business         Business?
+  businessCleaners BusinessCleaner[] @relation("BusinessCleaners")
+  assignedJobs     Job[]             @relation("AssignedCleaner")
+
+  @@map("users")
+}
+
+model Business {
+  id           String            @id @default(uuid())
+  userId       String            @unique @map("user_id")
+  name         String
+  phone        String?
+  address      String?
+  vatEnabled   Boolean           @default(false) @map("vat_enabled")
+  vatNumber    String?           @map("vat_number")
+  createdAt    DateTime          @default(now()) @map("created_at")
+  updatedAt    DateTime          @updatedAt @map("updated_at")
+  user         User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  clients      Client[]
+  invoices     Invoice[]
+  jobs         Job[]
+  subscription Subscription?
+  cleaners     BusinessCleaner[]
+
+  @@map("businesses")
+}
+
+model Client {
+  id         String    @id @default(uuid())
+  businessId String    @map("business_id")
+  name       String
+  phone      String?
+  address    String?
+  notes      Json?
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
+  business   Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  invoices   Invoice[]
+  jobs       Job[]
+
+  @@index([businessId])
+  @@index([createdAt])
+  @@map("clients")
+}
+
+model Job {
+  id            String         @id @default(uuid())
+  businessId    String         @map("business_id")
+  clientId      String         @map("client_id")
+  cleanerId     String?        @map("cleaner_id")
+  type          JobType        @default(ONE_OFF)
+  frequency     JobFrequency?
+  scheduledDate DateTime       @map("scheduled_date")
+  scheduledTime String?        @map("scheduled_time")
+  status        JobStatus      @default(SCHEDULED)
+  createdAt     DateTime       @default(now()) @map("created_at")
+  updatedAt     DateTime       @updatedAt @map("updated_at")
+  invoice       Invoice?
+  checklist     JobChecklist[]
+  photos        JobPhoto[]
+  report        JobReport?
+  business      Business       @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  client        Client         @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  cleaner       User?          @relation("AssignedCleaner", fields: [cleanerId], references: [id], onDelete: SetNull)
+
+  @@index([businessId])
+  @@index([clientId])
+  @@index([cleanerId])
+  @@index([status])
+  @@index([scheduledDate])
+  @@index([businessId, status])
+  @@index([businessId, cleanerId])
+  @@index([businessId, cleanerId, scheduledDate])
+  @@index([createdAt])
+  @@map("jobs")
+}
+
+model JobChecklist {
+  id        String   @id @default(uuid())
+  jobId     String   @map("job_id")
+  itemText  String   @map("item_text")
+  completed Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at")
+  job       Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@index([jobId])
+  @@map("job_checklists")
+}
+
+model JobPhoto {
+  id        String    @id @default(uuid())
+  jobId     String    @map("job_id")
+  imageUrl  String    @map("image_url")
+  photoType PhotoType @map("photo_type")
+  timestamp DateTime  @default(now())
+  createdAt DateTime  @default(now()) @map("created_at")
+  job       Job       @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@index([jobId])
+  @@map("job_photos")
+}
+
+model JobReport {
+  id        String   @id @default(uuid())
+  jobId     String   @unique @map("job_id")
+  pdfUrl    String?  @map("pdf_url")
+  createdAt DateTime @default(now()) @map("created_at")
+  job       Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@map("job_reports")
+}
+
+model Invoice {
+  id            String         @id @default(uuid())
+  jobId         String?        @unique @map("job_id")
+  businessId    String         @map("business_id")
+  clientId      String         @map("client_id")
+  invoiceNumber String         @unique @map("invoice_number")
+  amount        Decimal        @db.Decimal(10, 2)
+  vatAmount     Decimal        @default(0) @map("vat_amount") @db.Decimal(10, 2)
+  totalAmount   Decimal        @map("total_amount") @db.Decimal(10, 2)
+  status        InvoiceStatus  @default(UNPAID)
+  paymentMethod PaymentMethod? @map("payment_method")
+  paidAt        DateTime?      @map("paid_at")
+  dueDate       DateTime       @map("due_date")
+  createdAt     DateTime       @default(now()) @map("created_at")
+  updatedAt     DateTime       @updatedAt @map("updated_at")
+  business      Business       @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  client        Client         @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  job           Job?           @relation(fields: [jobId], references: [id])
+
+  @@index([businessId])
+  @@index([clientId])
+  @@index([status])
+  @@index([businessId, status])
+  @@index([createdAt])
+  @@index([dueDate])
+  @@map("invoices")
+}
+
+model Subscription {
+  id                   String             @id @default(uuid())
+  businessId           String             @unique @map("business_id")
+  planType             SubscriptionPlan   @map("plan_type")
+  stripeSubscriptionId String?            @unique @map("stripe_subscription_id")
+  status               SubscriptionStatus @default(ACTIVE)
+  currentPeriodEnd     DateTime           @map("current_period_end")
+  createdAt            DateTime           @default(now()) @map("created_at")
+  updatedAt            DateTime           @updatedAt @map("updated_at")
+  usage                JobUsage[]
+  business             Business           @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@map("subscriptions")
+}
+
+model JobUsage {
+  id             String       @id @default(uuid())
+  businessId     String       @map("business_id")
+  subscriptionId String       @map("subscription_id")
+  month          Int
+  year           Int
+  jobCount       Int          @default(0) @map("job_count")
+  createdAt      DateTime     @default(now()) @map("created_at")
+  subscription   Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+
+  @@unique([businessId, month, year])
+  @@index([businessId])
+  @@index([subscriptionId])
+  @@index([businessId, year, month])
+  @@map("job_usage")
+}
+
+enum UserRole {
+  OWNER
+  CLEANER
+}
+
+enum JobType {
+  ONE_OFF
+  RECURRING
+}
+
+enum JobFrequency {
+  WEEKLY
+  BI_WEEKLY
+}
+
+enum JobStatus {
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+}
+
+enum PhotoType {
+  BEFORE
+  AFTER
+}
+
+enum InvoiceStatus {
+  PAID
+  UNPAID
+}
+
+enum PaymentMethod {
+  BANK_TRANSFER
+  CARD
+  CASH
+}
+
+enum SubscriptionPlan {
+  FREE
+  SOLO
+  SMALL_TEAM
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  CANCELLED
+  PAST_DUE
+}
+
+model BusinessCleaner {
+  id          String        @id @default(uuid())
+  businessId  String        @map("business_id")
+  cleanerId   String        @map("cleaner_id")
+  status      CleanerStatus @default(ACTIVE)
+  invitedBy   String        @map("invited_by")
+  invitedAt   DateTime      @default(now()) @map("invited_at")
+  activatedAt DateTime?     @map("activated_at")
+  createdAt   DateTime      @default(now()) @map("created_at")
+  updatedAt   DateTime      @updatedAt @map("updated_at")
+  business    Business      @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  cleaner     User          @relation("BusinessCleaners", fields: [cleanerId], references: [id], onDelete: Cascade)
+
+  @@unique([businessId, cleanerId])
+  @@index([businessId])
+  @@index([cleanerId])
+  @@index([cleanerId, status])
+  @@index([businessId, status])
+  @@map("business_cleaners")
+}
+
+enum CleanerStatus {
+  PENDING
+  ACTIVE
+  INACTIVE
+}

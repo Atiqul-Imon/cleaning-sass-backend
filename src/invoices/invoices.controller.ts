@@ -1,0 +1,99 @@
+import {
+  Controller,
+  Get,
+  Post,
+  Put,
+  Body,
+  Param,
+  UseGuards,
+  Res,
+} from '@nestjs/common';
+import type { Response } from 'express';
+import { InvoicesService } from './invoices.service';
+import { PdfService } from './pdf.service';
+import { AuthGuard } from '../auth/auth.guard';
+import { RolesGuard } from '../auth/roles.guard';
+import { Roles } from '../auth/roles.guard';
+import { CurrentUser } from '../auth/auth.decorator';
+
+@Controller('invoices')
+@UseGuards(AuthGuard, RolesGuard)
+export class InvoicesController {
+  constructor(
+    private invoicesService: InvoicesService,
+    private pdfService: PdfService,
+  ) {}
+
+  @Post('from-job/:jobId')
+  @Roles('OWNER') // Only owners can create invoices
+  async createFromJob(
+    @CurrentUser() user: any,
+    @Param('jobId') jobId: string,
+    @Body('amount') amount: number,
+  ) {
+    return this.invoicesService.createFromJob(user.id, jobId, amount);
+  }
+
+  @Get()
+  @Roles('OWNER') // Only owners can see invoices
+  async findAll(@CurrentUser() user: any) {
+    return this.invoicesService.findAll(user.id);
+  }
+
+  @Get(':id')
+  @Roles('OWNER') // Only owners can see invoice details
+  async findOne(@CurrentUser() user: any, @Param('id') id: string) {
+    return this.invoicesService.findOne(user.id, id);
+  }
+
+  @Get(':id/pdf')
+  @Roles('OWNER') // Only owners can download invoice PDF
+  async downloadPDF(
+    @CurrentUser() user: any,
+    @Param('id') id: string,
+    @Res() res: Response,
+  ) {
+    const invoice = await this.invoicesService.findOne(user.id, id);
+    const pdfBuffer = await this.pdfService.generateInvoicePDF(invoice as any);
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="invoice-${invoice.invoiceNumber}.pdf"`,
+    );
+    res.send(pdfBuffer);
+  }
+
+  @Get('unpaid/count')
+  @Roles('OWNER') // Only owners can see invoice counts
+  async getUnpaidCount(@CurrentUser() user: any) {
+    return { count: await this.invoicesService.getUnpaidCount(user.id) };
+  }
+
+  @Get('earnings/:month/:year')
+  @Roles('OWNER') // Only owners can see earnings
+  async getMonthlyEarnings(
+    @CurrentUser() user: any,
+    @Param('month') month: string,
+    @Param('year') year: string,
+  ) {
+    return {
+      earnings: await this.invoicesService.getMonthlyEarnings(
+        user.id,
+        parseInt(month),
+        parseInt(year),
+      ),
+    };
+  }
+
+  @Put(':id/mark-paid')
+  @Roles('OWNER') // Only owners can mark invoices as paid
+  async markAsPaid(
+    @CurrentUser() user: any,
+    @Param('id') id: string,
+    @Body('paymentMethod') paymentMethod: string,
+  ) {
+    return this.invoicesService.markAsPaid(user.id, id, paymentMethod);
+  }
+}
+
