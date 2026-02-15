@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { SupabaseService } from './supabase.service';
+import { UserRole } from '@prisma/client';
 
 @Injectable()
 export class AuthService {
@@ -17,7 +18,7 @@ export class AuthService {
     return user?.role || null;
   }
 
-  async setUserRole(userId: string, role: 'OWNER' | 'CLEANER') {
+  async setUserRole(userId: string, role: UserRole) {
     return this.prisma.user.upsert({
       where: { id: userId },
       update: { role },
@@ -29,7 +30,7 @@ export class AuthService {
     });
   }
 
-  async createOrUpdateUser(supabaseUserId: string, email: string, role: 'OWNER' | 'CLEANER' = 'OWNER') {
+  async createOrUpdateUser(supabaseUserId: string, email: string, role: UserRole = UserRole.OWNER) {
     return this.prisma.user.upsert({
       where: { id: supabaseUserId },
       update: { email },

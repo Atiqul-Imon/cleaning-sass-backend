@@ -26,7 +26,12 @@ export class BusinessService {
     return this.prisma.business.create({
       data: {
         userId,
-        ...data,
+        invoiceTemplate: data.invoiceTemplate || 'classic',
+        name: data.name,
+        phone: data.phone,
+        address: data.address,
+        vatEnabled: data.vatEnabled || false,
+        vatNumber: data.vatNumber,
       },
     });
   }

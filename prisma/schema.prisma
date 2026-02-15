@@ -21,21 +21,22 @@ model User {
 }
 
 model Business {
-  id           String            @id @default(uuid())
-  userId       String            @unique @map("user_id")
-  name         String
-  phone        String?
-  address      String?
-  vatEnabled   Boolean           @default(false) @map("vat_enabled")
-  vatNumber    String?           @map("vat_number")
-  createdAt    DateTime          @default(now()) @map("created_at")
-  updatedAt    DateTime          @updatedAt @map("updated_at")
-  user         User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  clients      Client[]
-  invoices     Invoice[]
-  jobs         Job[]
-  subscription Subscription?
-  cleaners     BusinessCleaner[]
+  id              String            @id @default(uuid())
+  userId          String            @unique @map("user_id")
+  name            String
+  phone           String?
+  address         String?
+  vatEnabled      Boolean           @default(false) @map("vat_enabled")
+  vatNumber       String?           @map("vat_number")
+  invoiceTemplate String            @default("classic") @map("invoice_template")
+  createdAt       DateTime          @default(now()) @map("created_at")
+  updatedAt       DateTime          @updatedAt @map("updated_at")
+  user            User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  clients         Client[]
+  invoices        Invoice[]
+  jobs            Job[]
+  subscription    Subscription?
+  cleaners        BusinessCleaner[]
 
   @@map("businesses")
 }
@@ -59,24 +60,27 @@ model Client {
 }
 
 model Job {
-  id            String         @id @default(uuid())
-  businessId    String         @map("business_id")
-  clientId      String         @map("client_id")
-  cleanerId     String?        @map("cleaner_id")
-  type          JobType        @default(ONE_OFF)
-  frequency     JobFrequency?
-  scheduledDate DateTime       @map("scheduled_date")
-  scheduledTime String?        @map("scheduled_time")
-  status        JobStatus      @default(SCHEDULED)
-  createdAt     DateTime       @default(now()) @map("created_at")
-  updatedAt     DateTime       @updatedAt @map("updated_at")
-  invoice       Invoice?
-  checklist     JobChecklist[]
-  photos        JobPhoto[]
-  report        JobReport?
-  business      Business       @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  client        Client         @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  cleaner       User?          @relation("AssignedCleaner", fields: [cleanerId], references: [id], onDelete: SetNull)
+  id              String         @id @default(uuid())
+  businessId      String         @map("business_id")
+  clientId        String         @map("client_id")
+  cleanerId       String?        @map("cleaner_id")
+  type            JobType        @default(ONE_OFF)
+  frequency       JobFrequency?
+  scheduledDate   DateTime       @map("scheduled_date")
+  scheduledTime   String?        @map("scheduled_time")
+  status          JobStatus      @default(SCHEDULED)
+  reminderEnabled Boolean        @default(true) @map("reminder_enabled")
+  reminderTime    String?        @map("reminder_time") // e.g., "1 day", "2 hours", "30 minutes"
+  reminderSent    Boolean        @default(false) @map("reminder_sent")
+  createdAt       DateTime       @default(now()) @map("created_at")
+  updatedAt       DateTime       @updatedAt @map("updated_at")
+  invoice         Invoice?
+  checklist       JobChecklist[]
+  photos          JobPhoto[]
+  report          JobReport?
+  business        Business       @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  client          Client         @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  cleaner         User?          @relation("AssignedCleaner", fields: [cleanerId], references: [id], onDelete: SetNull)
 
   @@index([businessId])
   @@index([clientId])
@@ -87,6 +91,7 @@ model Job {
   @@index([businessId, cleanerId])
   @@index([businessId, cleanerId, scheduledDate])
   @@index([createdAt])
+  @@index([reminderEnabled, reminderSent, scheduledDate])
   @@map("jobs")
 }
 
@@ -188,6 +193,7 @@ model JobUsage {
 enum UserRole {
   OWNER
   CLEANER
+  ADMIN
 }
 
 enum JobType {

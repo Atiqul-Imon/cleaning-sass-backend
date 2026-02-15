@@ -1,14 +1,24 @@
 import { Injectable, NotFoundException, ForbiddenException, Inject, forwardRef } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { BusinessService } from '../business/business.service';
+import { WhatsAppService } from '../whatsapp/whatsapp.service';
 import { CreateJobDto, UpdateJobDto } from './dto/job.dto';
+import { JobsRepository } from './repositories/jobs.repository';
+import { IJobsService } from './interfaces/jobs.service.interface';
+import { JobEntity, JobWithRelations } from './entities/job.entity';
+import { JobDomainService } from './domain/job.domain.service';
+import { BusinessIdDomainService } from '../shared/domain/business-id.domain.service';
 import { addWeeks, addDays } from 'date-fns';
 
 @Injectable()
-export class JobsService {
+export class JobsService implements IJobsService {
   constructor(
     private prisma: PrismaService,
+    private jobsRepository: JobsRepository,
     private businessService: BusinessService,
+    private whatsappService: WhatsAppService,
+    private jobDomainService: JobDomainService,
+    private businessIdService: BusinessIdDomainService,
   ) {}
 
   async create(userId: string, data: CreateJobDto) {
@@ -24,105 +34,53 @@ export class JobsService {
         frequency: data.frequency,
         scheduledDate,
         scheduledTime: data.scheduledTime,
+        reminderEnabled: data.reminderEnabled !== undefined ? data.reminderEnabled : true,
+        reminderTime: data.reminderTime || '1 day',
       },
     });
 
-    // If recurring, create future jobs
+    // If recurring, create future jobs using domain service
     if (data.type === 'RECURRING' && data.frequency) {
-      await this.createRecurringJobs(job.id, scheduledDate, data.frequency, 12); // Create 12 future jobs
+      const scheduledDate = new Date(data.scheduledDate);
+      const recurringJobsData = this.jobDomainService.generateRecurringJobs(
+        job,
+        scheduledDate,
+        data.frequency,
+        12, // Create 12 future jobs
+      );
+      // Filter out null values and ensure proper types for Prisma
+      const cleanData = recurringJobsData.map(j => ({
+        ...j,
+        reminderSent: j.reminderSent ?? false,
+      }));
+      await this.prisma.job.createMany({ data: cleanData });
     }
 
     return job;
   }
 
-  private async createRecurringJobs(
-    originalJobId: string,
-    startDate: Date,
-    frequency: 'WEEKLY' | 'BI_WEEKLY',
-    count: number,
-  ) {
-    const originalJob = await this.prisma.job.findUnique({
-      where: { id: originalJobId },
-    });
+  // Recurring jobs logic moved to JobDomainService.generateRecurringJobs()
 
-    if (!originalJob) return;
-
-    const jobs: Array<{
-      businessId: string;
-      clientId: string;
-      cleanerId: string | null;
-      type: 'RECURRING';
-      frequency: 'WEEKLY' | 'BI_WEEKLY';
-      scheduledDate: Date;
-      scheduledTime: string | null;
-      status: 'SCHEDULED';
-    }> = [];
-    
-    for (let i = 1; i <= count; i++) {
-      const nextDate =
-        frequency === 'WEEKLY'
-          ? addWeeks(startDate, i)
-          : addWeeks(startDate, i * 2);
-
-      jobs.push({
-        businessId: originalJob.businessId,
-        clientId: originalJob.clientId,
-        cleanerId: originalJob.cleanerId,
-        type: 'RECURRING',
-        frequency,
-        scheduledDate: nextDate,
-        scheduledTime: originalJob.scheduledTime,
-        status: 'SCHEDULED',
-      });
-    }
-
-    await this.prisma.job.createMany({ data: jobs });
-  }
-
-  async findAll(userId: string, userRole?: string) {
-    let businessId: string;
-
-    if (userRole === 'CLEANER') {
-      // Get cleaner's business from BusinessCleaner
-      const businessCleaner = await this.prisma.businessCleaner.findFirst({
-        where: {
-          cleanerId: userId,
-          status: 'ACTIVE',
-        },
-        select: {
-          businessId: true,
-        },
-      });
-
-      if (!businessCleaner) {
-        return []; // No business assigned, return empty
-      }
-
-      businessId = businessCleaner.businessId;
+  async findAll(userId: string, userRole?: string): Promise<JobWithRelations[]> {
+    try {
+      const businessId = await this.businessIdService.getBusinessId(userId, userRole as any);
 
       // Cleaners only see jobs assigned to them
-      return this.prisma.job.findMany({
-        where: {
+      if (userRole === 'CLEANER') {
+        return this.jobsRepository.findAllWithRelations({
           businessId: businessId,
           cleanerId: userId, // Only jobs assigned to this cleaner
-        },
-        include: {
-          client: true,
-        },
-        orderBy: { scheduledDate: 'desc' },
-      });
-    }
+        });
+      }
 
-    // Owners see all jobs
-    const business = await this.businessService.findByUserId(userId);
-    return this.prisma.job.findMany({
-      where: { businessId: business.id },
-      include: {
-        client: true,
-        invoice: true,
-      },
-      orderBy: { scheduledDate: 'desc' },
-    });
+      // Owners see all jobs
+      return this.jobsRepository.findAllWithRelations({
+        businessId: businessId,
+      });
+    } catch (error) {
+      // If business doesn't exist yet, return empty array
+      return [];
+    }
   }
 
   async findToday(userId: string, userRole?: string) {
@@ -146,8 +104,16 @@ export class JobsService {
 
       businessId = businessCleaner.businessId;
     } else {
-      const business = await this.businessService.findByUserId(userId);
-      businessId = business.id;
+      try {
+        const business = await this.businessService.findByUserId(userId);
+        businessId = business.id;
+      } catch (error) {
+        // If business doesn't exist yet, return empty array
+        if (error instanceof NotFoundException) {
+          return [];
+        }
+        throw error;
+      }
     }
 
     const today = new Date();
@@ -262,6 +228,18 @@ export class JobsService {
     if (data.scheduledDate) updateData.scheduledDate = new Date(data.scheduledDate);
     if (data.scheduledTime !== undefined) updateData.scheduledTime = data.scheduledTime;
     if (data.status) updateData.status = data.status as 'SCHEDULED' | 'IN_PROGRESS' | 'COMPLETED';
+    if (data.reminderEnabled !== undefined) {
+      updateData.reminderEnabled = data.reminderEnabled;
+      // Reset reminder sent status if reminder is re-enabled
+      if (data.reminderEnabled) {
+        updateData.reminderSent = false;
+      }
+    }
+    if (data.reminderTime !== undefined) {
+      updateData.reminderTime = data.reminderTime;
+      // Reset reminder sent status if reminder time changes
+      updateData.reminderSent = false;
+    }
 
     return this.prisma.job.update({
       where: { id: jobId },
@@ -269,12 +247,17 @@ export class JobsService {
     });
   }
 
-  async remove(userId: string, jobId: string, userRole?: string) {
-    await this.findOne(userId, jobId, userRole); // Verify access
+  async remove(userId: string, jobId: string, userRole?: string): Promise<JobEntity> {
+    // Verify access
+    const job = await this.findOne(userId, jobId, userRole);
 
-    return this.prisma.job.delete({
-      where: { id: jobId },
-    });
+    // Check business rule: can only delete scheduled jobs
+    if (!this.jobDomainService.canDeleteJob(job.status)) {
+      throw new ForbiddenException('Only scheduled jobs can be deleted');
+    }
+
+    await this.jobsRepository.delete(jobId);
+    return job;
   }
 
   async addPhoto(
@@ -317,6 +300,83 @@ export class JobsService {
       where: { id: itemId },
       data: { completed },
     });
+  }
+
+  async getWhatsAppLinkForPhotos(
+    userId: string,
+    jobId: string,
+    photoType: 'BEFORE' | 'AFTER' | 'ALL',
+    userRole?: string,
+  ) {
+    const job = await this.findOne(userId, jobId, userRole);
+    
+    if (!job.client.phone) {
+      return {
+        whatsappUrl: null,
+        phoneNumber: null,
+        error: 'Client phone number not available',
+      };
+    }
+
+    // Include business in the job object for message generation
+    const business = await this.businessService.findByUserId(userId);
+    const jobWithBusiness = {
+      ...job,
+      business,
+    };
+
+    const message = this.whatsappService.generateJobPhotosMessage(
+      jobWithBusiness,
+      photoType,
+    );
+    const whatsappUrl = this.whatsappService.generateWhatsAppLink(
+      job.client.phone,
+      message,
+    );
+
+    return {
+      whatsappUrl,
+      phoneNumber: job.client.phone,
+      message,
+      photos: job.photos || [],
+    };
+  }
+
+  async getWhatsAppLinkForCompletion(
+    userId: string,
+    jobId: string,
+    userRole?: string,
+  ) {
+    const job = await this.findOne(userId, jobId, userRole);
+    
+    if (!job.client.phone) {
+      return {
+        whatsappUrl: null,
+        phoneNumber: null,
+        error: 'Client phone number not available',
+      };
+    }
+
+    // Include business in the job object for message generation
+    const business = await this.businessService.findByUserId(userId);
+    const jobWithBusiness = {
+      ...job,
+      business,
+    };
+
+    const message = this.whatsappService.generateJobCompletionMessage(
+      jobWithBusiness,
+    );
+    const whatsappUrl = this.whatsappService.generateWhatsAppLink(
+      job.client.phone,
+      message,
+    );
+
+    return {
+      whatsappUrl,
+      phoneNumber: job.client.phone,
+      message,
+    };
   }
 }
 

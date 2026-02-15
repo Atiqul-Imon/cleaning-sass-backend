@@ -2,23 +2,43 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { BusinessService } from '../business/business.service';
 import { JobsService } from '../jobs/jobs.service';
+import { WhatsAppService } from '../whatsapp/whatsapp.service';
+import { InvoiceDomainService } from './domain/invoice.domain.service';
+import { IInvoicesService } from './interfaces/invoices.service.interface';
+import { InvoiceEntity, InvoiceWithRelations } from './entities/invoice.entity';
 
 @Injectable()
-export class InvoicesService {
+export class InvoicesService implements IInvoicesService {
   constructor(
     private prisma: PrismaService,
     private businessService: BusinessService,
     private jobsService: JobsService,
+    private whatsappService: WhatsAppService,
+    private invoiceDomainService: InvoiceDomainService,
   ) {}
 
-  async createFromJob(userId: string, jobId: string, amount: number) {
+  async createFromJob(userId: string, jobId: string, amount: number): Promise<any> {
+    // Validate using domain service
+    const validation = this.invoiceDomainService.validateCreateInvoice(amount);
+    if (!validation.valid) {
+      throw new Error(validation.errors?.join(', ') || 'Validation failed');
+    }
+
     const business = await this.businessService.findByUserId(userId);
     const job = await this.jobsService.findOne(userId, jobId, 'OWNER');
 
-    const vatAmount = business.vatEnabled ? amount * 0.2 : 0;
-    const totalAmount = amount + vatAmount;
+    // Calculate amounts using domain service
+    const vatAmount = this.invoiceDomainService.calculateVAT(amount, business.vatEnabled);
+    const totalAmount = this.invoiceDomainService.calculateTotal(amount, business.vatEnabled);
 
-    const invoiceNumber = await this.generateInvoiceNumber(business.id);
+    // Generate invoice number using domain service
+    const invoiceCount = await this.prisma.invoice.count({
+      where: { businessId: business.id },
+    });
+    const invoiceNumber = this.invoiceDomainService.generateInvoiceNumber(invoiceCount);
+
+    // Calculate due date using domain service
+    const dueDate = this.invoiceDomainService.calculateDueDate(30);
 
     return this.prisma.invoice.create({
       data: {
@@ -29,16 +49,9 @@ export class InvoicesService {
         amount,
         vatAmount,
         totalAmount,
-        dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
+        dueDate,
       },
     });
-  }
-
-  private async generateInvoiceNumber(businessId: string): Promise<string> {
-    const count = await this.prisma.invoice.count({
-      where: { businessId },
-    });
-    return `INV-${String(count + 1).padStart(6, '0')}`;
   }
 
   async findAll(userId: string) {
@@ -81,27 +94,28 @@ export class InvoicesService {
     return invoice;
   }
 
-  async markAsPaid(userId: string, invoiceId: string, paymentMethod: string) {
-    const business = await this.businessService.findByUserId(userId);
-
-    const invoice = await this.prisma.invoice.findFirst({
-      where: {
-        id: invoiceId,
-        businessId: business.id,
-      },
-    });
-
-    if (!invoice) {
-      throw new Error('Invoice not found');
+  async update(userId: string, invoiceId: string, data: { status?: 'PAID' | 'UNPAID'; paymentMethod?: 'BANK_TRANSFER' | 'CARD' | 'CASH' }): Promise<any> {
+    // Validate using domain service
+    const validation = this.invoiceDomainService.validateUpdateInvoice(data);
+    if (!validation.valid) {
+      throw new Error(validation.errors?.join(', ') || 'Validation failed');
     }
+
+    const invoice = await this.findOne(userId, invoiceId);
 
     return this.prisma.invoice.update({
       where: { id: invoiceId },
       data: {
-        status: 'PAID',
-        paymentMethod: paymentMethod as any,
-        paidAt: new Date(),
+        ...data,
+        ...(data.status === 'PAID' && { paidAt: new Date() }),
       },
+    });
+  }
+
+  async markAsPaid(userId: string, invoiceId: string, paymentMethod: string) {
+    return this.update(userId, invoiceId, {
+      status: 'PAID',
+      paymentMethod: paymentMethod as 'BANK_TRANSFER' | 'CARD' | 'CASH',
     });
   }
 
@@ -133,6 +147,27 @@ export class InvoicesService {
     });
 
     return invoices.reduce((sum, inv) => sum + Number(inv.totalAmount), 0);
+  }
+
+  async getWhatsAppLink(userId: string, invoiceId: string): Promise<{ whatsappUrl: string | null; phoneNumber?: string }> {
+    const invoice = await this.findOne(userId, invoiceId);
+    
+    if (!invoice.client?.phone) {
+      return {
+        whatsappUrl: null,
+      };
+    }
+
+    const message = this.whatsappService.generateInvoiceMessage(invoice);
+    const whatsappUrl = this.whatsappService.generateWhatsAppLink(
+      invoice.client.phone,
+      message,
+    );
+
+    return {
+      whatsappUrl,
+      phoneNumber: invoice.client.phone || undefined,
+    };
   }
 }
 

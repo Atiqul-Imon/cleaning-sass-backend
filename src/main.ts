@@ -1,6 +1,7 @@
 import { NestFactory } from '@nestjs/core';
-import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
+import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
+import { AppModule } from './app.module';
 import compression from 'compression';
 
 async function bootstrap() {
@@ -31,10 +32,45 @@ async function bootstrap() {
     whitelist: true,
     forbidNonWhitelisted: true,
     transform: true,
+    transformOptions: {
+      enableImplicitConversion: true,
+    },
   }));
+
+  // Swagger API Documentation
+  const config = new DocumentBuilder()
+    .setTitle('Cleaner SaaS API')
+    .setDescription('API documentation for the Cleaner SaaS platform')
+    .setVersion('1.0')
+    .addBearerAuth(
+      {
+        type: 'http',
+        scheme: 'bearer',
+        bearerFormat: 'JWT',
+        name: 'JWT',
+        description: 'Enter JWT token',
+        in: 'header',
+      },
+      'JWT-auth',
+    )
+    .addTag('auth', 'Authentication endpoints')
+    .addTag('jobs', 'Job management endpoints')
+    .addTag('clients', 'Client management endpoints')
+    .addTag('invoices', 'Invoice management endpoints')
+    .addTag('business', 'Business management endpoints')
+    .addTag('admin', 'Admin panel endpoints')
+    .build();
+
+  const document = SwaggerModule.createDocument(app, config);
+  SwaggerModule.setup('api', app, document, {
+    swaggerOptions: {
+      persistAuthorization: true,
+    },
+  });
   
   const port = process.env.PORT || 5000;
   await app.listen(port);
   console.log(`🚀 Backend server running on port ${port}`);
+  console.log(`📚 Swagger API documentation available at http://localhost:${port}/api`);
 }
 bootstrap();

@@ -18,7 +18,8 @@
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
-    "seed": "ts-node prisma/seed.ts"
+    "seed": "ts-node prisma/seed.ts",
+    "create-admin": "ts-node scripts/create-admin.ts"
   },
   "prisma": {
     "seed": "ts-node prisma/seed.ts"
@@ -29,6 +30,7 @@
     "@nestjs/core": "^11.1.12",
     "@nestjs/platform-express": "^11.1.12",
     "@nestjs/schedule": "^6.1.1",
+    "@nestjs/swagger": "^11.2.6",
     "@prisma/client": "^6.19.2",
     "@stripe/stripe-js": "^8.7.0",
     "@supabase/supabase-js": "^2.90.1",

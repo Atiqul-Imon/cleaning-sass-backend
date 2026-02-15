@@ -19,6 +19,10 @@ export class CreateBusinessDto {
   @IsString()
   @IsOptional()
   vatNumber?: string;
+
+  @IsString()
+  @IsOptional()
+  invoiceTemplate?: string;
 }
 
 export class UpdateBusinessDto {
@@ -41,7 +45,14 @@ export class UpdateBusinessDto {
   @IsString()
   @IsOptional()
   vatNumber?: string;
+
+  @IsString()
+  @IsOptional()
+  invoiceTemplate?: string;
 }
+
+
+
 
 
 

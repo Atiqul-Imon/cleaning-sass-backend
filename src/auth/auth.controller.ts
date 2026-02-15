@@ -4,6 +4,7 @@ import { CurrentUser } from './auth.decorator';
 import { AuthService } from './auth.service';
 import { SupabaseService } from './supabase.service';
 import { ChangePasswordDto } from './dto/change-password.dto';
+import { UserRole } from '@prisma/client';
 
 @Controller('auth')
 export class AuthController {
@@ -27,7 +28,7 @@ export class AuthController {
   @UseGuards(AuthGuard)
   async setRole(
     @CurrentUser() user: any,
-    @Body('role') role: 'OWNER' | 'CLEANER',
+    @Body('role') role: UserRole,
   ) {
     return this.authService.setUserRole(user.id, role);
   }

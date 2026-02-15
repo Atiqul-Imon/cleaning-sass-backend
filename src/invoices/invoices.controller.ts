@@ -95,5 +95,14 @@ export class InvoicesController {
   ) {
     return this.invoicesService.markAsPaid(user.id, id, paymentMethod);
   }
+
+  @Get(':id/whatsapp-link')
+  @Roles('OWNER') // Only owners can send invoices via WhatsApp
+  async getWhatsAppLink(
+    @CurrentUser() user: any,
+    @Param('id') id: string,
+  ) {
+    return this.invoicesService.getWhatsAppLink(user.id, id);
+  }
 }
 
