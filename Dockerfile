@@ -27,8 +27,9 @@ RUN npm ci
 # Copy source code
 COPY . .
 
-# Generate Prisma Client
-RUN npx prisma generate
+# Generate Prisma Client (with dummy DATABASE_URL for build)
+# Prisma generate doesn't actually need a real connection, just the URL format
+RUN DATABASE_URL='postgresql://dummy:dummy@dummy:5432/dummy' npx prisma generate || npx prisma generate --schema=./prisma/schema.prisma
 
 # Build the application
 RUN npm run build
