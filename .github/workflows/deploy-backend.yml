@@ -69,6 +69,7 @@ jobs:
           port: ${{ secrets.DO_PORT || 22 }}
           timeout: 30s
           command_timeout: 10m
+          debug: true
           script: |
             set -e
             

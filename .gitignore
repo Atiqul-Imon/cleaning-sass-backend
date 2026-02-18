@@ -46,3 +46,9 @@ docker-compose.override.yml
 # Misc
 *.pem
 *.key
+
+# SSH keys and secrets
+DO_SSH_KEY_FORMATTED.txt
+COPY_THIS_KEY.md
+*_KEY*.txt
+*_KEY*.md
