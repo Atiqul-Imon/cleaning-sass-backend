@@ -1,0 +1,164 @@
+name: Deploy Backend to Digital Ocean
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}/backend
+
+jobs:
+  build-and-push:
+    name: Build and Push Docker Image
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=sha,prefix={{branch}}-
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    name: Deploy to Digital Ocean Droplet
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Deploy to Digital Ocean
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.DO_HOST }}
+          username: ${{ secrets.DO_USER }}
+          key: ${{ secrets.DO_SSH_KEY }}
+          port: ${{ secrets.DO_PORT || 22 }}
+          script: |
+            set -e
+            
+            echo "🚀 Starting deployment to DigitalOcean..."
+            
+            # Navigate to project directory
+            cd /opt/fieldneat-backend/backend || { echo "❌ Directory not found. Please run initial setup first."; exit 1; }
+            
+            # Set GITHUB_REPOSITORY for docker-compose
+            export GITHUB_REPOSITORY="${{ github.repository }}"
+            
+            # Login to GitHub Container Registry
+            # Use GHCR_TOKEN if provided, otherwise fall back to GITHUB_TOKEN
+            if [ -n "${{ secrets.GHCR_TOKEN }}" ]; then
+              echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin || {
+                echo "❌ Failed to login to GHCR with GHCR_TOKEN"
+                exit 1
+              }
+            else
+              echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin || {
+                echo "❌ Failed to login to GHCR with GITHUB_TOKEN"
+                exit 1
+              }
+            fi
+            
+            echo "📦 Pulling latest Docker image..."
+            docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest || {
+              echo "❌ Failed to pull Docker image"
+              exit 1
+            }
+            
+            echo "🛑 Stopping existing container..."
+            docker compose -f docker-compose.prod.yml down || true
+            
+            echo "🔄 Running database migrations..."
+            docker run --rm \
+              --env-file .env \
+              -v $(pwd)/prisma:/app/prisma \
+              -w /app \
+              ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest \
+              sh -c "npm install && npx prisma migrate deploy" || {
+              echo "❌ Database migration failed"
+              exit 1
+            }
+            
+            echo "🚀 Starting new container..."
+            docker compose -f docker-compose.prod.yml up -d --force-recreate || {
+              echo "❌ Failed to start container"
+              docker compose -f docker-compose.prod.yml logs
+              exit 1
+            }
+            
+            echo "⏳ Waiting for container to be healthy..."
+            sleep 10
+            
+            # Check container status
+            CONTAINER_STATUS=$(docker inspect fieldneat-backend --format='{{.State.Status}}' 2>/dev/null || echo "not-found")
+            if [ "$CONTAINER_STATUS" != "running" ]; then
+              echo "❌ Container is not running. Status: $CONTAINER_STATUS"
+              docker compose -f docker-compose.prod.yml logs --tail=50
+              exit 1
+            fi
+            
+            # Health check
+            echo "🏥 Checking health endpoint..."
+            for i in {1..10}; do
+              if curl -f -s http://localhost:5000/health > /dev/null; then
+                echo "✅ Health check passed!"
+                break
+              fi
+              if [ $i -eq 10 ]; then
+                echo "❌ Health check failed after 10 attempts"
+                docker compose -f docker-compose.prod.yml logs --tail=50
+                exit 1
+              fi
+              echo "   Attempt $i/10 failed, retrying in 2 seconds..."
+              sleep 2
+            done
+            
+            # Clean up old images
+            echo "🧹 Cleaning up old Docker images..."
+            docker image prune -f
+            
+            echo "✅ Deployment successful!"
+
+      - name: Deployment Summary
+        if: always()
+        run: |
+          if [ "${{ job.status }}" == "success" ]; then
+            echo "✅ Deployment completed successfully!"
+            echo "🌐 Backend URL: https://fieldneat.pixelforgebd.com"
+          else
+            echo "❌ Deployment failed. Check logs above for details."
+          fi
+
