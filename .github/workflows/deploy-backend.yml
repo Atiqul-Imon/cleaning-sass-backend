@@ -107,13 +107,25 @@ jobs:
             docker compose -f docker-compose.prod.yml down || true
             
             echo "🔄 Running database migrations..."
+            # Load .env file and pass DATABASE_URL to container
+            if [ -f .env ]; then
+              export $(grep -v '^#' .env | xargs)
+            fi
             docker run --rm \
               --env-file .env \
+              -e DATABASE_URL="${DATABASE_URL}" \
               -v $(pwd)/prisma:/app/prisma \
               -w /app \
               ${{ env.REGISTRY }}/$DOCKER_IMAGE_NAME:latest \
               sh -c "npm install && npx prisma migrate deploy" || {
               echo "❌ Database migration failed"
+              echo "Checking .env file..."
+              if [ -f .env ]; then
+                echo "✅ .env file exists"
+                grep -q "DATABASE_URL" .env && echo "✅ DATABASE_URL found in .env" || echo "❌ DATABASE_URL NOT in .env"
+              else
+                echo "❌ .env file not found"
+              fi
               exit 1
             }
             
