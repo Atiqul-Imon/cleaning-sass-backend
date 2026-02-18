@@ -27,12 +27,15 @@ RUN npm ci
 # Copy source code
 COPY . .
 
-# Generate Prisma Client (with dummy DATABASE_URL for build)
-# Prisma generate doesn't actually need a real connection, just the URL format
-RUN DATABASE_URL='postgresql://dummy:dummy@dummy:5432/dummy' npx prisma generate || npx prisma generate --schema=./prisma/schema.prisma
+# Generate Prisma Client
+# Provide dummy DATABASE_URL for build (Prisma config requires it but doesn't use it during generate)
+RUN DATABASE_URL='postgresql://dummy:dummy@dummy:5432/dummy' npx prisma generate --schema=./prisma/schema.prisma
 
 # Build the application
 RUN npm run build
+
+# Verify build output (NestJS outputs to dist/src/main.js)
+RUN ls -la dist/ && test -f dist/src/main.js || (echo 'Build failed - dist/src/main.js not found' && exit 1)
 
 # Stage 3: Production
 FROM node:20-alpine AS runner
@@ -58,8 +61,8 @@ EXPOSE 5000
 HEALTHCHECK --interval=30s --timeout=3s --start-period=40s --retries=3 \
   CMD node -e "require('http').get('http://localhost:5000/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})" || exit 1
 
-# Start the application
-CMD ["node", "dist/main.js"]
+# Start the application (NestJS outputs to dist/src/main.js)
+CMD ["node", "dist/src/main.js"]
 
 
 
