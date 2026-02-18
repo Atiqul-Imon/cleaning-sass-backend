@@ -418,3 +418,9 @@ npx prisma db pull
 ## 📝 License
 
 Private - All rights reserved
+
+## Deployment
+
+This backend is automatically deployed to DigitalOcean via GitHub Actions on every push to the `main` branch.
+
+Last deployment test: 2026-02-19 03:36:54
