@@ -5,6 +5,7 @@ services:
     image: ghcr.io/atiqul-imon/cleaning-sass-backend/backend:latest
     container_name: fieldneat-backend
     restart: unless-stopped
+    command: ["node", "dist/src/main.js"]
     ports:
       - "${PORT:-5000}:5000"
     environment:
