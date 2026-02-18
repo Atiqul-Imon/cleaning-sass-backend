@@ -118,20 +118,24 @@ jobs:
               exit 1
             fi
             
-            # Run migrations with .env file
+            # Extract DATABASE_URL from .env (handling quotes if present)
+            DATABASE_URL_VALUE=$(grep "^DATABASE_URL=" .env | head -1 | cut -d'=' -f2- | sed 's/^"//; s/"$//')
+            
+            # Verify DATABASE_URL format
+            if [[ ! "$DATABASE_URL_VALUE" =~ ^postgres ]]; then
+              echo "❌ DATABASE_URL format invalid (must start with postgres:// or postgresql://)"
+              echo "   Current value starts with: ${DATABASE_URL_VALUE:0:20}..."
+              exit 1
+            fi
+            
+            # Run migrations with explicit DATABASE_URL
             docker run --rm \
-              --env-file .env \
+              -e DATABASE_URL="$DATABASE_URL_VALUE" \
               -v $(pwd)/prisma:/app/prisma \
               -w /app \
               ${{ env.REGISTRY }}/$DOCKER_IMAGE_NAME:latest \
               sh -c "npm install && npx prisma migrate deploy" || {
               echo "❌ Database migration failed"
-              echo "Debug info:"
-              echo "  - .env file exists: $([ -f .env ] && echo 'yes' || echo 'no')"
-              echo "  - DATABASE_URL in .env: $(grep -q '^DATABASE_URL=' .env && echo 'yes' || echo 'no')"
-              if [ -f .env ]; then
-                echo "  - DATABASE_URL format: $(grep '^DATABASE_URL=' .env | head -1 | cut -d'=' -f2 | cut -c1-20)..."
-              fi
               exit 1
             }
             
