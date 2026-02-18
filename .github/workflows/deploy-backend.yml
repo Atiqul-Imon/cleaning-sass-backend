@@ -107,24 +107,30 @@ jobs:
             docker compose -f docker-compose.prod.yml down || true
             
             echo "🔄 Running database migrations..."
-            # Load .env file and pass DATABASE_URL to container
-            if [ -f .env ]; then
-              export $(grep -v '^#' .env | xargs)
+            # Verify .env file exists and has DATABASE_URL
+            if [ ! -f .env ]; then
+              echo "❌ .env file not found"
+              exit 1
             fi
+            
+            if ! grep -q "^DATABASE_URL=" .env; then
+              echo "❌ DATABASE_URL not found in .env file"
+              exit 1
+            fi
+            
+            # Run migrations with .env file
             docker run --rm \
               --env-file .env \
-              -e DATABASE_URL="${DATABASE_URL}" \
               -v $(pwd)/prisma:/app/prisma \
               -w /app \
               ${{ env.REGISTRY }}/$DOCKER_IMAGE_NAME:latest \
               sh -c "npm install && npx prisma migrate deploy" || {
               echo "❌ Database migration failed"
-              echo "Checking .env file..."
+              echo "Debug info:"
+              echo "  - .env file exists: $([ -f .env ] && echo 'yes' || echo 'no')"
+              echo "  - DATABASE_URL in .env: $(grep -q '^DATABASE_URL=' .env && echo 'yes' || echo 'no')"
               if [ -f .env ]; then
-                echo "✅ .env file exists"
-                grep -q "DATABASE_URL" .env && echo "✅ DATABASE_URL found in .env" || echo "❌ DATABASE_URL NOT in .env"
-              else
-                echo "❌ .env file not found"
+                echo "  - DATABASE_URL format: $(grep '^DATABASE_URL=' .env | head -1 | cut -d'=' -f2 | cut -c1-20)..."
               fi
               exit 1
             }
