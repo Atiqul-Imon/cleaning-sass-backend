@@ -1,20 +1,18 @@
 import { Controller, Get } from '@nestjs/common';
-import { AppService } from './app.service';
+import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 
+@ApiTags('health')
 @Controller()
 export class AppController {
-  constructor(private readonly appService: AppService) {}
-
-  @Get()
-  getHello(): string {
-    return this.appService.getHello();
-  }
-
   @Get('health')
-  getHealth(): { status: string; timestamp: string } {
+  @ApiOperation({ summary: 'Health check endpoint' })
+  @ApiResponse({ status: 200, description: 'Service is healthy' })
+  health() {
     return {
       status: 'ok',
       timestamp: new Date().toISOString(),
+      service: 'FieldNeat Backend API',
+      version: process.env.npm_package_version || '1.0.0',
     };
   }
 }

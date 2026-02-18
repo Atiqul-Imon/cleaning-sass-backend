@@ -23,9 +23,9 @@ async function main() {
 
   // Test users to create
   const testUsers = [
-    { email: 'owner@cleansaaS.test', password: 'Owner123!', role: 'OWNER' as const },
-    { email: 'cleaner@cleansaaS.test', password: 'Cleaner123!', role: 'CLEANER' as const },
-    { email: 'admin@cleansaaS.test', password: 'Admin123!', role: 'OWNER' as const },
+    { email: 'owner@fieldneat.test', password: 'Owner123!', role: 'OWNER' as const },
+    { email: 'cleaner@fieldneat.test', password: 'Cleaner123!', role: 'CLEANER' as const },
+    { email: 'admin@fieldneat.test', password: 'Admin123!', role: 'OWNER' as const },
   ];
 
   console.log('\n📝 Creating users in Supabase Auth...');
@@ -82,7 +82,7 @@ async function main() {
 
   // Create business for owner
   const owner = await prisma.user.findFirst({
-    where: { email: 'owner@cleansaaS.test', role: 'OWNER' },
+    where: { email: 'owner@fieldneat.test', role: 'OWNER' },
   });
 
   if (owner) {
@@ -110,24 +110,24 @@ async function main() {
       console.log('\n📋 Test Users:');
       console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
       console.log('👤 Owner:');
-      console.log(`   Email: owner@cleansaaS.test`);
+      console.log(`   Email: owner@fieldneat.test`);
       console.log(`   Password: Owner123!`);
       console.log(`   User ID: ${owner.id}`);
       console.log('\n🧹 Cleaner:');
       const cleaner = await prisma.user.findFirst({
-        where: { email: 'cleaner@cleansaaS.test' },
+        where: { email: 'cleaner@fieldneat.test' },
       });
       if (cleaner) {
-        console.log(`   Email: cleaner@cleansaaS.test`);
+        console.log(`   Email: cleaner@fieldneat.test`);
         console.log(`   Password: Cleaner123!`);
         console.log(`   User ID: ${cleaner.id}`);
       }
       console.log('\n👨‍💼 Admin:');
       const admin = await prisma.user.findFirst({
-        where: { email: 'admin@cleansaaS.test' },
+        where: { email: 'admin@fieldneat.test' },
       });
       if (admin) {
-        console.log(`   Email: admin@cleansaaS.test`);
+        console.log(`   Email: admin@fieldneat.test`);
         console.log(`   Password: Admin123!`);
         console.log(`   User ID: ${admin.id}`);
       }

@@ -96,3 +96,5 @@ export class JobWithRelationsResponseDto extends JobResponseDto {
   } | null;
 }
 
+
+

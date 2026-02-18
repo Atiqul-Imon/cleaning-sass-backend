@@ -8,8 +8,8 @@ WORKDIR /app
 COPY package*.json ./
 COPY prisma ./prisma/
 
-# Install dependencies
-RUN npm ci --only=production && npm cache clean --force
+# Install dependencies (including dev for Prisma)
+RUN npm ci && npm cache clean --force
 
 # Stage 2: Build
 FROM node:20-alpine AS builder
@@ -59,6 +59,8 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=40s --retries=3 \
 
 # Start the application
 CMD ["node", "dist/main.js"]
+
+
 
 
 

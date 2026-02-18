@@ -12,3 +12,5 @@ WHERE table_schema = 'public'
   AND table_name = 'businesses'
 ORDER BY ordinal_position;
 
+
+

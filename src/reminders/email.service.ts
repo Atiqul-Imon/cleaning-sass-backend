@@ -68,7 +68,7 @@ export class EmailService {
       }
 
       const mailOptions = {
-        from: process.env.EMAIL_FROM || process.env.EMAIL_USER || 'noreply@cleansaaS.com',
+        from: process.env.EMAIL_FROM || process.env.EMAIL_USER || 'noreply@fieldneat.com',
         to: options.to,
         subject: options.subject,
         html: options.html,
@@ -83,6 +83,8 @@ export class EmailService {
     }
   }
 }
+
+
 
 
 
