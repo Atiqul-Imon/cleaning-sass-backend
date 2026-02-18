@@ -8,7 +8,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}/backend
+  IMAGE_NAME: ${{ github.repository_owner }}/${{ github.event.repository.name }}/backend
 
 jobs:
   build-and-push:
@@ -41,6 +41,7 @@ jobs:
             type=ref,event=branch
             type=sha,prefix={{branch}}-
             type=raw,value=latest,enable={{is_default_branch}}
+          transform-docker-tag: lowercase
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
@@ -78,8 +79,9 @@ jobs:
             # Navigate to project directory
             cd /opt/fieldneat-backend/backend || { echo "❌ Directory not found. Please run initial setup first."; exit 1; }
             
-            # Set GITHUB_REPOSITORY for docker-compose
+            # Set GITHUB_REPOSITORY for docker-compose (lowercase for Docker)
             export GITHUB_REPOSITORY="${{ github.repository }}"
+            export DOCKER_IMAGE_NAME=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')/backend
             
             # Login to GitHub Container Registry
             # Use GHCR_TOKEN if provided, otherwise fall back to GITHUB_TOKEN
@@ -96,7 +98,7 @@ jobs:
             fi
             
             echo "📦 Pulling latest Docker image..."
-            docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest || {
+            docker pull ${{ env.REGISTRY }}/$DOCKER_IMAGE_NAME:latest || {
               echo "❌ Failed to pull Docker image"
               exit 1
             }
