@@ -64,37 +64,7 @@ export class InvoicesController {
     res.send(pdfBuffer);
   }
 
-  @Get('unpaid/count')
-  @Roles('OWNER') // Only owners can see invoice counts
-  async getUnpaidCount(@CurrentUser() user: any) {
-    return { count: await this.invoicesService.getUnpaidCount(user.id) };
-  }
 
-  @Get('earnings/:month/:year')
-  @Roles('OWNER') // Only owners can see earnings
-  async getMonthlyEarnings(
-    @CurrentUser() user: any,
-    @Param('month') month: string,
-    @Param('year') year: string,
-  ) {
-    return {
-      earnings: await this.invoicesService.getMonthlyEarnings(
-        user.id,
-        parseInt(month),
-        parseInt(year),
-      ),
-    };
-  }
-
-  @Put(':id/mark-paid')
-  @Roles('OWNER') // Only owners can mark invoices as paid
-  async markAsPaid(
-    @CurrentUser() user: any,
-    @Param('id') id: string,
-    @Body('paymentMethod') paymentMethod: string,
-  ) {
-    return this.invoicesService.markAsPaid(user.id, id, paymentMethod);
-  }
 
   @Get(':id/whatsapp-link')
   @Roles('OWNER') // Only owners can send invoices via WhatsApp

@@ -56,8 +56,8 @@ async function bootstrap() {
 
   // Swagger API Documentation
   const config = new DocumentBuilder()
-    .setTitle('FieldNeat API')
-    .setDescription('API documentation for the FieldNeat cleaning business management platform')
+    .setTitle('Clenvora API')
+    .setDescription('API documentation for the Clenvora cleaning business management platform')
     .setVersion('1.0')
     .addBearerAuth(
       {

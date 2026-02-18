@@ -11,7 +11,7 @@ export class AppController {
     return {
       status: 'ok',
       timestamp: new Date().toISOString(),
-      service: 'FieldNeat Backend API',
+      service: 'Clenvora Backend API',
       version: process.env.npm_package_version || '1.0.0',
     };
   }
