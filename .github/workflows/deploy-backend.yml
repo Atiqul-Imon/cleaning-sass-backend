@@ -111,7 +111,7 @@ jobs:
               --env-file .env \
               -v $(pwd)/prisma:/app/prisma \
               -w /app \
-              ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest \
+              ${{ env.REGISTRY }}/$DOCKER_IMAGE_NAME:latest \
               sh -c "npm install && npx prisma migrate deploy" || {
               echo "❌ Database migration failed"
               exit 1
