@@ -25,9 +25,12 @@ async function bootstrap() {
 
   // Enable CORS for frontend
   const allowedOrigins = [
-    process.env.FRONTEND_URL || 'https://fieldneat.pixelforgebd.com',
-    'https://fieldneat.pixelforgebd.com',
+    process.env.FRONTEND_URL || 'https://clenvora.com',
+    'https://clenvora.com',
+    'https://www.clenvora.com',
+    'https://api.clenvora.com',
     'http://localhost:3000', // Development
+    'http://localhost:3001', // Development alternative
   ].filter(Boolean);
 
   app.enableCors({
