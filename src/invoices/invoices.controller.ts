@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, UseGuards, Res } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, UseGuards, Res, Query } from '@nestjs/common';
 import type { Response } from 'express';
 import type { AuthenticatedUser } from '../shared/types/user.types';
 import { InvoicesService } from './invoices.service';
@@ -6,6 +6,7 @@ import { PdfService } from './pdf.service';
 import { AuthGuard } from '../auth/auth.guard';
 import { RolesGuard, Roles } from '../auth/roles.guard';
 import { CurrentUser } from '../auth/auth.decorator';
+import { PaginationDto } from '../shared/dto/pagination.dto';
 
 @Controller('invoices')
 @UseGuards(AuthGuard, RolesGuard)
@@ -27,8 +28,8 @@ export class InvoicesController {
 
   @Get()
   @Roles('OWNER') // Only owners can see invoices
-  async findAll(@CurrentUser() user: AuthenticatedUser) {
-    return this.invoicesService.findAll(user.id);
+  async findAll(@CurrentUser() user: AuthenticatedUser, @Query() pagination: PaginationDto) {
+    return this.invoicesService.findAll(user.id, pagination);
   }
 
   @Get(':id')

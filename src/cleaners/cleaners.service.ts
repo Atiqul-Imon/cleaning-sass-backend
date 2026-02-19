@@ -22,6 +22,9 @@ export class CleanersService {
   async createCleaner(ownerId: string, email: string, name?: string) {
     // Get owner's business
     const business = await this.businessService.findByUserId(ownerId);
+    if (!business) {
+      throw new NotFoundException('Business not found');
+    }
 
     // Check if user already exists
     const existingUser = await this.prisma.user.findUnique({
@@ -143,6 +146,9 @@ export class CleanersService {
    */
   async getCleaners(ownerId: string) {
     const business = await this.businessService.findByUserId(ownerId);
+    if (!business) {
+      throw new NotFoundException('Business not found');
+    }
 
     const businessCleaners = await this.prisma.businessCleaner.findMany({
       where: {
@@ -239,6 +245,9 @@ export class CleanersService {
    */
   async deactivateCleaner(ownerId: string, cleanerId: string) {
     const business = await this.businessService.findByUserId(ownerId);
+    if (!business) {
+      throw new NotFoundException('Business not found');
+    }
 
     const businessCleaner = await this.prisma.businessCleaner.findUnique({
       where: {
@@ -268,6 +277,9 @@ export class CleanersService {
    */
   async removeCleaner(ownerId: string, cleanerId: string) {
     const business = await this.businessService.findByUserId(ownerId);
+    if (!business) {
+      throw new NotFoundException('Business not found');
+    }
 
     const businessCleaner = await this.prisma.businessCleaner.findUnique({
       where: {

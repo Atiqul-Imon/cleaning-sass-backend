@@ -1,4 +1,11 @@
-import { Injectable, NotFoundException, Optional } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  Optional,
+  ConflictException,
+  HttpException,
+  HttpStatus,
+} from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateBusinessDto, UpdateBusinessDto } from './dto/business.dto';
@@ -12,71 +19,116 @@ export class BusinessService {
   ) {}
 
   async create(userId: string, data: CreateBusinessDto) {
-    // First ensure user exists
-    await this.prisma.user.upsert({
-      where: { id: userId },
-      update: {},
-      create: {
-        id: userId,
-        email: '', // Will be updated from auth
-        role: 'OWNER',
-      },
-    });
+    try {
+      // Check if business already exists
+      const existingBusiness = await this.prisma.business.findUnique({
+        where: { userId },
+      });
 
-    return this.prisma.business.create({
-      data: {
-        userId,
-        invoiceTemplate: data.invoiceTemplate || 'classic',
-        name: data.name,
-        phone: data.phone,
-        address: data.address,
-        vatEnabled: data.vatEnabled || false,
-        vatNumber: data.vatNumber,
-      },
-    });
-  }
-
-  async findByUserId(userId: string): Promise<
-    Prisma.BusinessGetPayload<{
-      include: { user: { select: { id: true; email: true; role: true } } };
-    }>
-  > {
-    // Check cache first (request-scoped)
-    const cacheKey = `business:userId:${userId}`;
-    if (this.cacheService?.has(cacheKey)) {
-      const cached = this.cacheService.get(cacheKey) as Awaited<
-        ReturnType<typeof this.findByUserId>
-      >;
-      if (cached) {
-        return cached;
+      if (existingBusiness) {
+        throw new ConflictException('Business already exists for this user');
       }
-    }
 
-    const business = await this.prisma.business.findUnique({
-      where: { userId },
-      include: {
-        user: {
-          select: {
-            id: true,
-            email: true,
-            role: true,
+      // User should already exist from signup
+      // If not, this will be caught by the database foreign key constraint
+
+      const business = await this.prisma.business.create({
+        data: {
+          userId,
+          invoiceTemplate: data.invoiceTemplate || 'classic',
+          name: data.name,
+          phone: data.phone,
+          address: data.address,
+          vatEnabled: data.vatEnabled || false,
+          vatNumber: data.vatNumber,
+        },
+        include: {
+          user: {
+            select: {
+              id: true,
+              email: true,
+              role: true,
+            },
           },
         },
-      },
-    });
+      });
 
-    if (!business) {
-      throw new NotFoundException('Business not found');
+      return business;
+    } catch (error: any) {
+      // If it's already an HttpException, re-throw it
+      if (error instanceof HttpException) {
+        throw error;
+      }
+
+      // Handle Prisma unique constraint errors
+      if (error.code === 'P2002') {
+        throw new ConflictException('Business already exists for this user');
+      }
+
+      // Handle Prisma foreign key constraint errors (user doesn't exist)
+      if (error.code === 'P2003') {
+        throw new NotFoundException('User not found. Please ensure you are properly registered.');
+      }
+
+      // Log the error for debugging
+      console.error('Error creating business:', error);
+
+      // Re-throw as a more descriptive error
+      throw new HttpException(
+        `Failed to create business: ${error.message || 'Unknown error'}`,
+        error.status || HttpStatus.INTERNAL_SERVER_ERROR,
+      );
     }
+  }
 
-    // Cache the result for this request
-    this.cacheService?.set(cacheKey, business);
+  async findByUserId(userId: string): Promise<Prisma.BusinessGetPayload<{
+    include: { user: { select: { id: true; email: true; role: true } } };
+  }> | null> {
+    try {
+      // Check cache first (request-scoped)
+      const cacheKey = `business:userId:${userId}`;
+      if (this.cacheService?.has(cacheKey)) {
+        const cached = this.cacheService.get(cacheKey);
+        if (cached) {
+          return cached;
+        }
+      }
 
-    return business;
+      const business = await this.prisma.business.findUnique({
+        where: { userId },
+        include: {
+          user: {
+            select: {
+              id: true,
+              email: true,
+              role: true,
+            },
+          },
+        },
+      });
+
+      if (!business) {
+        return null;
+      }
+
+      // Cache the result for this request
+      this.cacheService?.set(cacheKey, business);
+
+      return business;
+    } catch (error: any) {
+      // Log the error for debugging
+      console.error('Error in findByUserId:', error);
+      // Re-throw as a more descriptive error
+      throw new Error(`Failed to fetch business: ${error.message || 'Unknown error'}`);
+    }
   }
 
   async update(userId: string, data: UpdateBusinessDto) {
     const business = await this.findByUserId(userId);
+
+    if (!business) {
+      throw new NotFoundException('Business not found');
+    }
 
     return this.prisma.business.update({
       where: { id: business.id },
@@ -86,6 +138,10 @@ export class BusinessService {
 
   async toggleVat(userId: string, vatEnabled: boolean, vatNumber?: string) {
     const business = await this.findByUserId(userId);
+
+    if (!business) {
+      throw new NotFoundException('Business not found');
+    }
 
     return this.prisma.business.update({
       where: { id: business.id },
@@ -98,6 +154,10 @@ export class BusinessService {
 
   async getCleaners(userId: string) {
     const business = await this.findByUserId(userId);
+
+    if (!business) {
+      throw new NotFoundException('Business not found');
+    }
 
     // Get all cleaners linked to this business via BusinessCleaner
     const businessCleaners = await this.prisma.businessCleaner.findMany({

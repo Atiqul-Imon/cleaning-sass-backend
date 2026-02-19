@@ -3,11 +3,12 @@ import { ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import compression from 'compression';
+import * as zlib from 'zlib';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
-  // Enable response compression (gzip)
+  // Enable response compression (gzip/brotli) with optimized settings
   app.use(
     compression({
       filter: (req, res) => {
@@ -15,11 +16,36 @@ async function bootstrap() {
         if (req.headers['x-no-compression']) {
           return false;
         }
-        // Use compression for all text-based responses
+        // Compress JSON, text, and other compressible content types
+        const contentType = res.getHeader('content-type') as string;
+        if (contentType) {
+          // Always compress JSON responses
+          if (contentType.includes('application/json')) {
+            return true;
+          }
+          // Compress text-based responses
+          if (
+            contentType.includes('text/') ||
+            contentType.includes('application/javascript') ||
+            contentType.includes('application/xml') ||
+            contentType.includes('application/xhtml+xml')
+          ) {
+            return true;
+          }
+        }
+        // Use default compression filter for other content types
         return compression.filter(req, res);
       },
-      level: 6, // Compression level (1-9, 6 is a good balance)
-      threshold: 1024, // Only compress responses larger than 1KB
+      level: 6, // Compression level (1-9, 6 is a good balance between speed and size)
+      threshold: 512, // Compress responses larger than 512 bytes (lowered from 1KB for better optimization)
+      // Enable brotli compression if supported by client
+      brotli: {
+        params: {
+          [zlib.constants.BROTLI_PARAM_QUALITY]: 4, // Brotli quality (0-11, 4 is good balance)
+        },
+      },
+      // Chunk size for streaming compression
+      chunkSize: 16 * 1024, // 16KB chunks
     }),
   );
 

@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import Stripe from 'stripe';
 import { PrismaService } from '../prisma/prisma.service';
 import { BusinessService } from '../business/business.service';
@@ -33,6 +33,9 @@ export class PaymentsService {
     }
 
     const business = await this.businessService.findByUserId(userId);
+    if (!business) {
+      throw new NotFoundException('Business not found');
+    }
 
     const priceMap = {
       SOLO: process.env.STRIPE_PRICE_ID_SOLO || 'price_solo',

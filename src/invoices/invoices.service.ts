@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { BusinessService } from '../business/business.service';
 import { JobsService } from '../jobs/jobs.service';
@@ -25,6 +25,9 @@ export class InvoicesService implements IInvoicesService {
     }
 
     const business = await this.businessService.findByUserId(userId);
+    if (!business) {
+      throw new NotFoundException('Business not found');
+    }
     const job = await this.jobsService.findOne(userId, jobId, 'OWNER');
 
     // Calculate amounts using domain service
@@ -62,14 +65,112 @@ export class InvoicesService implements IInvoicesService {
     } as InvoiceEntity;
   }
 
-  async findAll(userId: string): Promise<InvoiceWithRelations[]> {
+  async findAll(
+    userId: string,
+    pagination?: { page?: number; limit?: number },
+  ): Promise<{ data: InvoiceWithRelations[]; pagination: any } | InvoiceWithRelations[]> {
     const business = await this.businessService.findByUserId(userId);
+    if (!business) {
+      throw new NotFoundException('Business not found');
+    }
 
+    // If pagination is requested, return paginated response
+    if (pagination?.page || pagination?.limit) {
+      const page = pagination.page || 1;
+      const limit = Math.min(pagination.limit || 20, 100); // Max 100 items per page
+      const skip = (page - 1) * limit;
+
+      const [invoices, total] = await Promise.all([
+        this.prisma.invoice.findMany({
+          where: { businessId: business.id },
+          select: {
+            id: true,
+            invoiceNumber: true,
+            amount: true,
+            vatAmount: true,
+            totalAmount: true,
+            dueDate: true,
+            status: true,
+            createdAt: true,
+            updatedAt: true,
+            client: {
+              select: {
+                id: true,
+                name: true,
+                phone: true,
+                address: true,
+              },
+            },
+            job: {
+              select: {
+                id: true,
+                type: true,
+                scheduledDate: true,
+                scheduledTime: true,
+                status: true,
+              },
+            },
+          },
+          orderBy: { createdAt: 'desc' },
+          skip,
+          take: limit,
+        }),
+        this.prisma.invoice.count({
+          where: { businessId: business.id },
+        }),
+      ]);
+
+      // Convert Prisma Decimal to number
+      const data = invoices.map((invoice) => ({
+        ...invoice,
+        amount: Number(invoice.amount),
+        vatAmount: Number(invoice.vatAmount),
+        totalAmount: Number(invoice.totalAmount),
+      })) as InvoiceWithRelations[];
+
+      return {
+        data,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages: Math.ceil(total / limit),
+          hasNext: page * limit < total,
+          hasPrev: page > 1,
+        },
+      };
+    }
+
+    // Return all results (backward compatibility) with optimized select
     const invoices = await this.prisma.invoice.findMany({
       where: { businessId: business.id },
-      include: {
-        client: true,
-        job: true,
+      select: {
+        id: true,
+        invoiceNumber: true,
+        amount: true,
+        vatAmount: true,
+        totalAmount: true,
+        dueDate: true,
+        status: true,
+        createdAt: true,
+        updatedAt: true,
+        client: {
+          select: {
+            id: true,
+            name: true,
+            phone: true,
+            address: true,
+          },
+        },
+        job: {
+          select: {
+            id: true,
+            type: true,
+            scheduledDate: true,
+            scheduledTime: true,
+            status: true,
+          },
+        },
       },
       orderBy: { createdAt: 'desc' },
     });
@@ -85,6 +186,9 @@ export class InvoicesService implements IInvoicesService {
 
   async findOne(userId: string, invoiceId: string): Promise<InvoiceWithRelations> {
     const business = await this.businessService.findByUserId(userId);
+    if (!business) {
+      throw new NotFoundException('Business not found');
+    }
 
     const invoice = await this.prisma.invoice.findFirst({
       where: {
@@ -159,6 +263,9 @@ export class InvoicesService implements IInvoicesService {
 
   async getUnpaidCount(userId: string) {
     const business = await this.businessService.findByUserId(userId);
+    if (!business) {
+      throw new NotFoundException('Business not found');
+    }
 
     return this.prisma.invoice.count({
       where: {
@@ -170,6 +277,9 @@ export class InvoicesService implements IInvoicesService {
 
   async getMonthlyEarnings(userId: string, month: number, year: number) {
     const business = await this.businessService.findByUserId(userId);
+    if (!business) {
+      throw new NotFoundException('Business not found');
+    }
     const startDate = new Date(year, month - 1, 1);
     const endDate = new Date(year, month, 0);
 

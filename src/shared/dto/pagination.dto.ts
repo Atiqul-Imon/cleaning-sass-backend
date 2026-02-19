@@ -1,10 +1,9 @@
-import { IsOptional, IsInt, Min, Max } from 'class-validator';
-import { Type } from 'class-transformer';
 import { ApiPropertyOptional } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
+import { IsInt, Min, Max, IsOptional } from 'class-validator';
 
 /**
- * Pagination DTO
- * Standard pagination parameters for list endpoints
+ * Pagination query parameters DTO
  */
 export class PaginationDto {
   @ApiPropertyOptional({
@@ -32,35 +31,33 @@ export class PaginationDto {
   @Min(1)
   @Max(100)
   limit?: number = 20;
+
+  /**
+   * Calculate skip value for Prisma queries
+   */
+  get skip(): number {
+    return ((this.page || 1) - 1) * (this.limit || 20);
+  }
+
+  /**
+   * Get take value for Prisma queries
+   */
+  get take(): number {
+    return this.limit || 20;
+  }
 }
 
 /**
- * Paginated Response DTO
- * Standard response format for paginated endpoints
+ * Paginated response wrapper
  */
-export class PaginatedResponseDto<T> {
-  @ApiPropertyOptional()
+export interface PaginatedResponse<T> {
   data: T[];
-
-  @ApiPropertyOptional()
-  meta: {
+  pagination: {
     page: number;
     limit: number;
     total: number;
     totalPages: number;
-    hasNextPage: boolean;
-    hasPreviousPage: boolean;
+    hasNext: boolean;
+    hasPrev: boolean;
   };
-
-  constructor(data: T[], total: number, page: number, limit: number) {
-    this.data = data;
-    this.meta = {
-      page,
-      limit,
-      total,
-      totalPages: Math.ceil(total / limit),
-      hasNextPage: page * limit < total,
-      hasPreviousPage: page > 1,
-    };
-  }
 }

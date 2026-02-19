@@ -40,6 +40,9 @@ export class BusinessIdDomainService {
 
     // For OWNER and ADMIN, get business from user
     const business = await this.businessService.findByUserId(userId);
+    if (!business) {
+      throw new Error('Business not found for user');
+    }
     return business.id;
   }
 

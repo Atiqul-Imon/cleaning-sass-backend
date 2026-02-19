@@ -68,3 +68,4 @@ echo "5. Set up nginx configuration"
 echo "6. Set up SSL certificate"
 echo "7. Start the application with PM2"
 
+

@@ -71,10 +71,20 @@ export class ClientsRepository implements IRepository<
     }) as Promise<ClientWithRelations | null>;
   }
 
-  async findAllWithRelations(where?: Prisma.ClientWhereInput): Promise<ClientWithRelations[]> {
+  async findAllWithRelations(
+    where?: Prisma.ClientWhereInput,
+    pagination?: { skip?: number; take?: number },
+  ): Promise<ClientWithRelations[]> {
     return this.prisma.client.findMany({
       where,
-      include: {
+      select: {
+        id: true,
+        name: true,
+        phone: true,
+        address: true,
+        notes: true,
+        createdAt: true,
+        updatedAt: true,
         business: {
           select: {
             id: true,
@@ -83,6 +93,7 @@ export class ClientsRepository implements IRepository<
         },
       },
       orderBy: { createdAt: 'desc' },
+      ...(pagination && { skip: pagination.skip, take: pagination.take }),
     }) as Promise<ClientWithRelations[]>;
   }
 

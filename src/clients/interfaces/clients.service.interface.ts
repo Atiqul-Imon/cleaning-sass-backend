@@ -13,8 +13,13 @@ export interface IClientsService {
 
   /**
    * Find all clients for a user
+   * Returns paginated response if pagination is provided, otherwise returns all results
    */
-  findAll(userId: string): Promise<ClientWithRelations[]>;
+  findAll(
+    userId: string,
+    userRole?: string,
+    pagination?: { page?: number; limit?: number },
+  ): Promise<ClientWithRelations[] | { data: ClientWithRelations[]; pagination: any }>;
 
   /**
    * Find a single client by ID

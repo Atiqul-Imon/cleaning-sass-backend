@@ -15,8 +15,13 @@ export interface IJobsService {
 
   /**
    * Find all jobs for a user
+   * Returns paginated response if pagination is provided, otherwise returns all results
    */
-  findAll(userId: string, userRole?: string): Promise<JobWithRelations[]>;
+  findAll(
+    userId: string,
+    userRole?: string,
+    pagination?: { page?: number; limit?: number },
+  ): Promise<JobWithRelations[] | { data: JobWithRelations[]; pagination: any }>;
 
   /**
    * Find a single job by ID

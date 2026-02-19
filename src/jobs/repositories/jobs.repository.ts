@@ -96,10 +96,25 @@ export class JobsRepository implements IRepository<
     }) as Promise<JobWithRelations | null>;
   }
 
-  async findAllWithRelations(where?: Prisma.JobWhereInput): Promise<JobWithRelations[]> {
+  async findAllWithRelations(
+    where?: Prisma.JobWhereInput,
+    pagination?: { skip?: number; take?: number },
+  ): Promise<JobWithRelations[]> {
     return this.prisma.job.findMany({
       where,
-      include: {
+      select: {
+        id: true,
+        type: true,
+        frequency: true,
+        scheduledDate: true,
+        scheduledTime: true,
+        status: true,
+        reminderEnabled: true,
+        reminderTime: true,
+        reminderSent: true,
+        createdAt: true,
+        updatedAt: true,
+        cleanerId: true,
         client: {
           select: {
             id: true,
@@ -128,6 +143,7 @@ export class JobsRepository implements IRepository<
         },
       },
       orderBy: { scheduledDate: 'desc' },
+      ...(pagination && { skip: pagination.skip, take: pagination.take }),
     }) as Promise<JobWithRelations[]>;
   }
 

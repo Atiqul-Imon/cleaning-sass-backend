@@ -1,4 +1,15 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, UseGuards, Req } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Put,
+  Delete,
+  Body,
+  Param,
+  UseGuards,
+  Req,
+  Query,
+} from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import type { Request } from 'express';
 import type { AuthenticatedUser } from '../shared/types/user.types';
@@ -8,6 +19,7 @@ import { RolesGuard, Roles } from '../auth/roles.guard';
 import { CurrentUser } from '../auth/auth.decorator';
 import { CreateJobDto, UpdateJobDto } from './dto/job.dto';
 import { JobResponseDto } from './dto/job-response.dto';
+import { PaginationDto } from '../shared/dto/pagination.dto';
 
 @ApiTags('jobs')
 @ApiBearerAuth('JWT-auth')
@@ -31,10 +43,16 @@ export class JobsController {
   }
 
   @Get()
-  async findAll(@CurrentUser() user: AuthenticatedUser, @Req() req: Request) {
+  @ApiOperation({ summary: 'Get all jobs with pagination' })
+  @ApiResponse({ status: 200, description: 'List of jobs' })
+  async findAll(
+    @CurrentUser() user: AuthenticatedUser,
+    @Req() req: Request,
+    @Query() pagination: PaginationDto,
+  ) {
     // Role is set by AuthGuard on request.role
     const userRole = (req as Request & { role?: 'OWNER' | 'CLEANER' | 'ADMIN' }).role || 'OWNER';
-    return this.jobsService.findAll(user.id, userRole);
+    return this.jobsService.findAll(user.id, userRole, pagination);
   }
 
   @Get('today')

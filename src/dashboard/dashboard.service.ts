@@ -82,7 +82,12 @@ export class DashboardService {
               in: ['SCHEDULED', 'IN_PROGRESS'],
             },
           },
-          include: {
+          select: {
+            id: true,
+            type: true,
+            scheduledDate: true,
+            scheduledTime: true,
+            status: true,
             client: {
               select: {
                 id: true,
@@ -103,7 +108,12 @@ export class DashboardService {
             cleanerId: userId,
             status: 'IN_PROGRESS',
           },
-          include: {
+          select: {
+            id: true,
+            type: true,
+            scheduledDate: true,
+            scheduledTime: true,
+            status: true,
             client: {
               select: {
                 id: true,

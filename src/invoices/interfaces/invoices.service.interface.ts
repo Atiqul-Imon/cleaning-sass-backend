@@ -12,8 +12,12 @@ export interface IInvoicesService {
 
   /**
    * Find all invoices for a user
+   * Returns paginated response if pagination is provided, otherwise returns all results
    */
-  findAll(userId: string): Promise<InvoiceWithRelations[]>;
+  findAll(
+    userId: string,
+    pagination?: { page?: number; limit?: number },
+  ): Promise<InvoiceWithRelations[] | { data: InvoiceWithRelations[]; pagination: any }>;
 
   /**
    * Find a single invoice by ID

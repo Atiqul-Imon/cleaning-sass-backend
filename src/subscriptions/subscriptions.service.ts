@@ -11,6 +11,9 @@ export class SubscriptionsService {
 
   async getSubscription(userId: string) {
     const business = await this.businessService.findByUserId(userId);
+    if (!business) {
+      throw new NotFoundException('Business not found');
+    }
 
     const subscription = await this.prisma.subscription.findUnique({
       where: { businessId: business.id },
@@ -49,6 +52,9 @@ export class SubscriptionsService {
     stripeSubscriptionId?: string,
   ) {
     const business = await this.businessService.findByUserId(userId);
+    if (!business) {
+      throw new NotFoundException('Business not found');
+    }
 
     const subscription = await this.prisma.subscription.findUnique({
       where: { businessId: business.id },
@@ -70,6 +76,9 @@ export class SubscriptionsService {
 
   async cancelSubscription(userId: string) {
     const business = await this.businessService.findByUserId(userId);
+    if (!business) {
+      throw new NotFoundException('Business not found');
+    }
 
     const subscription = await this.prisma.subscription.findUnique({
       where: { businessId: business.id },
@@ -128,6 +137,9 @@ export class SubscriptionsService {
 
   async getUsageStats(userId: string) {
     const business = await this.businessService.findByUserId(userId);
+    if (!business) {
+      throw new NotFoundException('Business not found');
+    }
 
     const subscription = await this.prisma.subscription.findUnique({
       where: { businessId: business.id },

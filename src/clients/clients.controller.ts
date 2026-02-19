@@ -1,4 +1,15 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, UseGuards, Req } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Put,
+  Delete,
+  Body,
+  Param,
+  UseGuards,
+  Req,
+  Query,
+} from '@nestjs/common';
 import type { Request } from 'express';
 import type { AuthenticatedUser } from '../shared/types/user.types';
 import { ClientsService } from './clients.service';
@@ -6,6 +17,7 @@ import { AuthGuard } from '../auth/auth.guard';
 import { RolesGuard, Roles } from '../auth/roles.guard';
 import { CurrentUser } from '../auth/auth.decorator';
 import { CreateClientDto, UpdateClientDto } from './dto/client.dto';
+import { PaginationDto } from '../shared/dto/pagination.dto';
 
 @Controller('clients')
 @UseGuards(AuthGuard, RolesGuard)
@@ -19,9 +31,13 @@ export class ClientsController {
   }
 
   @Get()
-  async findAll(@CurrentUser() user: AuthenticatedUser, @Req() req: Request) {
+  async findAll(
+    @CurrentUser() user: AuthenticatedUser,
+    @Req() req: Request,
+    @Query() pagination: PaginationDto,
+  ) {
     const userRole = (req as any).role || 'OWNER';
-    return this.clientsService.findAll(user.id, userRole);
+    return this.clientsService.findAll(user.id, userRole, pagination);
   }
 
   @Get(':id')

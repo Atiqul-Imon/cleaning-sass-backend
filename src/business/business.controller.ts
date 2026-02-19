@@ -1,4 +1,13 @@
-import { Controller, Get, Post, Put, Body, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Put,
+  Body,
+  UseGuards,
+  HttpException,
+  HttpStatus,
+} from '@nestjs/common';
 import type { AuthenticatedUser } from '../shared/types/user.types';
 import { BusinessService } from './business.service';
 import { AuthGuard } from '../auth/auth.guard';
@@ -13,13 +22,25 @@ export class BusinessController {
 
   @Get()
   async getBusiness(@CurrentUser() user: AuthenticatedUser) {
-    return this.businessService.findByUserId(user.id);
+    return await this.businessService.findByUserId(user.id);
   }
 
   @Post()
   @Roles('OWNER') // Only owners can create business
   async createBusiness(@CurrentUser() user: AuthenticatedUser, @Body() data: CreateBusinessDto) {
-    return this.businessService.create(user.id, data);
+    try {
+      return await this.businessService.create(user.id, data);
+    } catch (error: any) {
+      // Re-throw HttpExceptions as-is
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      // Wrap other errors
+      throw new HttpException(
+        error.message || 'Failed to create business',
+        error.status || HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
   }
 
   @Put()

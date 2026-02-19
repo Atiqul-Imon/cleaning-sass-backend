@@ -28,6 +28,9 @@ export class ClientsService implements IClientsService {
 
     // Get business ID
     const business = await this.businessService.findByUserId(userId);
+    if (!business) {
+      throw new NotFoundException('Business not found');
+    }
 
     // Transform data using domain service
     const clientData = this.clientDomainService.transformClientData(data, business.id);
@@ -35,15 +38,55 @@ export class ClientsService implements IClientsService {
     return this.clientsRepository.create(clientData);
   }
 
-  async findAll(userId: string, userRole?: string): Promise<ClientWithRelations[]> {
+  async findAll(
+    userId: string,
+    userRole?: string,
+    pagination?: { page?: number; limit?: number },
+  ): Promise<{ data: ClientWithRelations[]; pagination: any } | ClientWithRelations[]> {
     try {
       const businessId = await this.businessIdService.getBusinessId(userId, userRole as any);
-      return this.clientsRepository.findAllWithRelations({
-        businessId,
-      });
+
+      // If pagination is requested, return paginated response
+      if (pagination?.page || pagination?.limit) {
+        const page = pagination.page || 1;
+        const limit = Math.min(pagination.limit || 20, 100); // Max 100 items per page
+        const skip = (page - 1) * limit;
+
+        const [data, total] = await Promise.all([
+          this.clientsRepository.findAllWithRelations({ businessId }, { skip, take: limit }),
+          this.clientsRepository.count({ businessId }),
+        ]);
+
+        return {
+          data,
+          pagination: {
+            page,
+            limit,
+            total,
+            totalPages: Math.ceil(total / limit),
+            hasNext: page * limit < total,
+            hasPrev: page > 1,
+          },
+        };
+      }
+
+      // Return all results (backward compatibility)
+      return this.clientsRepository.findAllWithRelations({ businessId });
     } catch {
       // If business doesn't exist yet, return empty array
-      return [];
+      return pagination
+        ? {
+            data: [],
+            pagination: {
+              page: 1,
+              limit: 20,
+              total: 0,
+              totalPages: 0,
+              hasNext: false,
+              hasPrev: false,
+            },
+          }
+        : [];
     }
   }
 
@@ -102,10 +145,32 @@ export class ClientsService implements IClientsService {
 
     return this.prisma.job.findMany({
       where: whereClause,
-      orderBy: { scheduledDate: 'desc' },
-      include: {
-        invoice: userRole === 'OWNER' ? true : false, // Cleaners can't see invoices
+      select: {
+        id: true,
+        type: true,
+        frequency: true,
+        scheduledDate: true,
+        scheduledTime: true,
+        status: true,
+        reminderEnabled: true,
+        reminderTime: true,
+        reminderSent: true,
+        createdAt: true,
+        updatedAt: true,
+        cleanerId: true,
+        invoice:
+          userRole === 'OWNER'
+            ? {
+                select: {
+                  id: true,
+                  invoiceNumber: true,
+                  amount: true,
+                  status: true,
+                },
+              }
+            : false, // Cleaners can't see invoices
       },
+      orderBy: { scheduledDate: 'desc' },
     });
   }
 }

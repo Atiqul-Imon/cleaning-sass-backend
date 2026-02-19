@@ -25,6 +25,9 @@ export class JobsService implements IJobsService {
 
   async create(userId: string, data: CreateJobDto) {
     const business = await this.businessService.findByUserId(userId);
+    if (!business) {
+      throw new NotFoundException('Business not found');
+    }
     const scheduledDate = new Date(data.scheduledDate);
 
     const job = await this.prisma.job.create({
@@ -63,25 +66,62 @@ export class JobsService implements IJobsService {
 
   // Recurring jobs logic moved to JobDomainService.generateRecurringJobs()
 
-  async findAll(userId: string, userRole?: string): Promise<JobWithRelations[]> {
+  async findAll(
+    userId: string,
+    userRole?: string,
+    pagination?: { page?: number; limit?: number },
+  ): Promise<{ data: JobWithRelations[]; pagination: any } | JobWithRelations[]> {
     try {
       const businessId = await this.businessIdService.getBusinessId(userId, userRole as any);
 
+      const whereClause: Prisma.JobWhereInput = { businessId };
+
       // Cleaners only see jobs assigned to them
       if (userRole === 'CLEANER') {
-        return this.jobsRepository.findAllWithRelations({
-          businessId,
-          cleanerId: userId, // Only jobs assigned to this cleaner
-        });
+        whereClause.cleanerId = userId;
       }
 
-      // Owners see all jobs
-      return this.jobsRepository.findAllWithRelations({
-        businessId,
-      });
+      // If pagination is requested, return paginated response
+      if (pagination?.page || pagination?.limit) {
+        const page = pagination.page || 1;
+        const limit = Math.min(pagination.limit || 20, 100); // Max 100 items per page
+        const skip = (page - 1) * limit;
+
+        const [data, total] = await Promise.all([
+          this.jobsRepository.findAllWithRelations(whereClause, { skip, take: limit }),
+          this.jobsRepository.count(whereClause),
+        ]);
+
+        return {
+          data,
+          pagination: {
+            page,
+            limit,
+            total,
+            totalPages: Math.ceil(total / limit),
+            hasNext: page * limit < total,
+            hasPrev: page > 1,
+          },
+        };
+      }
+
+      // Return all results (backward compatibility)
+      return this.jobsRepository.findAllWithRelations(whereClause);
     } catch {
       // If business doesn't exist yet, return empty array
-      return [];
+      return pagination
+        ? {
+            data: [],
+            pagination: {
+              page: 1,
+              limit: 20,
+              total: 0,
+              totalPages: 0,
+              hasNext: false,
+              hasPrev: false,
+            },
+          }
+        : [];
     }
   }
 
@@ -108,6 +148,9 @@ export class JobsService implements IJobsService {
     } else {
       try {
         const business = await this.businessService.findByUserId(userId);
+        if (!business) {
+          throw new NotFoundException('Business not found');
+        }
         businessId = business.id;
       } catch (err) {
         // If business doesn't exist yet, return empty array
@@ -136,13 +179,44 @@ export class JobsService implements IJobsService {
       whereClause.cleanerId = userId;
     }
 
-    return this.prisma.job.findMany({
+    const jobs = await this.prisma.job.findMany({
       where: whereClause,
-      include: {
-        client: true,
+      select: {
+        id: true,
+        businessId: true,
+        clientId: true,
+        type: true,
+        frequency: true,
+        scheduledDate: true,
+        scheduledTime: true,
+        status: true,
+        reminderEnabled: true,
+        reminderTime: true,
+        reminderSent: true,
+        createdAt: true,
+        updatedAt: true,
+        cleanerId: true,
+        client: {
+          select: {
+            id: true,
+            name: true,
+            phone: true,
+            address: true,
+          },
+        },
       },
       orderBy: { scheduledTime: 'asc' },
     });
+
+    // Map to JobWithRelations format
+    return jobs.map((job) => ({
+      ...job,
+      business: { id: job.businessId, name: '' }, // Will be populated if needed
+      cleaner: null, // Not needed for today's jobs list
+      invoice: null, // Not needed for today's jobs list
+      checklist: [],
+      photos: [],
+    })) as JobWithRelations[];
   }
 
   async findOne(userId: string, jobId: string, userRole?: string) {
@@ -167,6 +241,9 @@ export class JobsService implements IJobsService {
       businessId = businessCleaner.businessId;
     } else {
       const business = await this.businessService.findByUserId(userId);
+      if (!business) {
+        throw new NotFoundException('Business not found');
+      }
       businessId = business.id;
     }
 

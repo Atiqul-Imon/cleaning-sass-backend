@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { BusinessService } from '../business/business.service';
 
@@ -11,6 +11,9 @@ export class ReportsService {
 
   async getBusinessReport(userId: string, startDate: Date, endDate: Date) {
     const business = await this.businessService.findByUserId(userId);
+    if (!business) {
+      throw new NotFoundException('Business not found');
+    }
 
     const jobs = await this.prisma.job.findMany({
       where: {
@@ -75,6 +78,9 @@ export class ReportsService {
 
   async getClientReport(userId: string, clientId: string) {
     const business = await this.businessService.findByUserId(userId);
+    if (!business) {
+      throw new NotFoundException('Business not found');
+    }
 
     const client = await this.prisma.client.findFirst({
       where: {
