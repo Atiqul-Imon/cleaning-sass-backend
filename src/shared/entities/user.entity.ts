@@ -19,6 +19,3 @@ export interface UserWithBusiness extends UserEntity {
     name: string;
   };
 }
-
-
-

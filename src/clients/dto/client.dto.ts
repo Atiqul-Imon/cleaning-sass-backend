@@ -1,4 +1,12 @@
-import { IsString, IsOptional, IsObject, IsNotEmpty, MinLength, MaxLength, Matches } from 'class-validator';
+import {
+  IsString,
+  IsOptional,
+  IsObject,
+  IsNotEmpty,
+  MinLength,
+  MaxLength,
+  Matches,
+} from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
 
@@ -18,7 +26,7 @@ export class CreateClientDto {
   @MinLength(1, { message: 'Client name cannot be empty' })
   @MaxLength(100, { message: 'Client name must be less than 100 characters' })
   @Transform(({ value }) => value?.trim())
-  name: string;
+  name!: string;
 
   @ApiPropertyOptional({
     description: 'Phone number (with country code for WhatsApp)',
@@ -26,7 +34,7 @@ export class CreateClientDto {
   })
   @IsString()
   @IsOptional()
-  @Matches(/^[\+]?[(]?[0-9]{1,4}[)]?[-\s\.]?[(]?[0-9]{1,4}[)]?[-\s\.]?[0-9]{1,9}$/, {
+  @Matches(/^[+]?[(]?[0-9]{1,4}[)]?[-\s.]?[(]?[0-9]{1,4}[)]?[-\s.]?[0-9]{1,9}$/, {
     message: 'Invalid phone number format',
   })
   @Transform(({ value }) => value?.trim())
@@ -88,7 +96,7 @@ export class UpdateClientDto {
   })
   @IsString()
   @IsOptional()
-  @Matches(/^[\+]?[(]?[0-9]{1,4}[)]?[-\s\.]?[(]?[0-9]{1,4}[)]?[-\s\.]?[0-9]{1,9}$/, {
+  @Matches(/^[+]?[(]?[0-9]{1,4}[)]?[-\s.]?[(]?[0-9]{1,4}[)]?[-\s.]?[0-9]{1,9}$/, {
     message: 'Invalid phone number format',
   })
   @Transform(({ value }) => value?.trim())
@@ -125,12 +133,3 @@ export class UpdateClientDto {
     preferences?: string;
   };
 }
-
-
-
-
-
-
-
-
-

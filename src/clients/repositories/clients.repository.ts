@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { Prisma } from '@prisma/client';
 import { ClientEntity, ClientWithRelations } from '../entities/client.entity';
 import { IRepository } from '../../shared/interfaces/repository.interface';
 import { CreateClientDto, UpdateClientDto } from '../dto/client.dto';
@@ -10,7 +11,12 @@ import { CreateClientDto, UpdateClientDto } from '../dto/client.dto';
  * Implements repository pattern to separate data access from business logic
  */
 @Injectable()
-export class ClientsRepository implements IRepository<ClientEntity, CreateClientDto, UpdateClientDto> {
+export class ClientsRepository implements IRepository<
+  ClientEntity,
+  CreateClientDto & { businessId: string },
+  UpdateClientDto,
+  Prisma.ClientWhereInput
+> {
   constructor(private prisma: PrismaService) {}
 
   async create(data: CreateClientDto & { businessId: string }): Promise<ClientEntity> {
@@ -19,14 +25,14 @@ export class ClientsRepository implements IRepository<ClientEntity, CreateClient
     }) as Promise<ClientEntity>;
   }
 
-  async findAll(where?: any): Promise<ClientEntity[]> {
+  async findAll(where?: Prisma.ClientWhereInput): Promise<ClientEntity[]> {
     return this.prisma.client.findMany({
       where,
       orderBy: { createdAt: 'desc' },
     }) as Promise<ClientEntity[]>;
   }
 
-  async findOne(id: string, where?: any): Promise<ClientEntity | null> {
+  async findOne(id: string, where?: Prisma.ClientWhereInput): Promise<ClientEntity | null> {
     return this.prisma.client.findFirst({
       where: {
         id,
@@ -35,7 +41,10 @@ export class ClientsRepository implements IRepository<ClientEntity, CreateClient
     }) as Promise<ClientEntity | null>;
   }
 
-  async findOneWithRelations(id: string, where?: any): Promise<ClientWithRelations | null> {
+  async findOneWithRelations(
+    id: string,
+    where?: Prisma.ClientWhereInput,
+  ): Promise<ClientWithRelations | null> {
     return this.prisma.client.findFirst({
       where: {
         id,
@@ -62,7 +71,7 @@ export class ClientsRepository implements IRepository<ClientEntity, CreateClient
     }) as Promise<ClientWithRelations | null>;
   }
 
-  async findAllWithRelations(where?: any): Promise<ClientWithRelations[]> {
+  async findAllWithRelations(where?: Prisma.ClientWhereInput): Promise<ClientWithRelations[]> {
     return this.prisma.client.findMany({
       where,
       include: {
@@ -90,12 +99,9 @@ export class ClientsRepository implements IRepository<ClientEntity, CreateClient
     });
   }
 
-  async count(where?: any): Promise<number> {
+  async count(where?: Prisma.ClientWhereInput): Promise<number> {
     return this.prisma.client.count({
       where,
     });
   }
 }
-
-
-

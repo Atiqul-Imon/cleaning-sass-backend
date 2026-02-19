@@ -79,7 +79,7 @@ export class JobRemindersService {
 
     // Parse reminder time (e.g., "1 day", "2 hours", "30 minutes")
     const reminderMs = this.parseReminderTime(reminderTime);
-    
+
     // Check if we're within the reminder window (within 1 hour of the reminder time)
     const oneHour = 60 * 60 * 1000;
     const timeUntilReminder = timeUntilJob - reminderMs;
@@ -163,9 +163,10 @@ export class JobRemindersService {
     }
 
     // Send to client if email available (in notes or future email field)
-    const clientEmail = (job.client as any).email || 
-                       (job.client.notes && typeof job.client.notes === 'object' && (job.client.notes as any).email);
-    
+    const clientEmail =
+      job.client.email ||
+      (job.client.notes && typeof job.client.notes === 'object' && job.client.notes.email);
+
     if (clientEmail) {
       const clientSubject = `Reminder: Cleaning appointment on ${formattedDate}`;
       const clientHtml = this.getClientReminderEmail(job, formattedDate, formattedTime);
@@ -363,6 +364,3 @@ ${job.business.phone ? `Phone: ${job.business.phone}` : ''}
     await this.sendJobReminders();
   }
 }
-
-
-

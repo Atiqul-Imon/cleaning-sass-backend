@@ -1,14 +1,16 @@
-import { Injectable, NotFoundException, ForbiddenException, Inject, forwardRef } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { Prisma } from '@prisma/client';
 import { BusinessService } from '../business/business.service';
 import { WhatsAppService } from '../whatsapp/whatsapp.service';
-import { CreateJobDto, UpdateJobDto } from './dto/job.dto';
+import { CreateJobDto, UpdateJobDto, JobType } from './dto/job.dto';
 import { JobsRepository } from './repositories/jobs.repository';
 import { IJobsService } from './interfaces/jobs.service.interface';
 import { JobEntity, JobWithRelations } from './entities/job.entity';
+import { JobPhotoEntity } from './entities/job-photo.entity';
+import { JobChecklistItemEntity } from './entities/job-checklist.entity';
 import { JobDomainService } from './domain/job.domain.service';
 import { BusinessIdDomainService } from '../shared/domain/business-id.domain.service';
-import { addWeeks, addDays } from 'date-fns';
 
 @Injectable()
 export class JobsService implements IJobsService {
@@ -40,7 +42,7 @@ export class JobsService implements IJobsService {
     });
 
     // If recurring, create future jobs using domain service
-    if (data.type === 'RECURRING' && data.frequency) {
+    if (data.type === JobType.RECURRING && data.frequency) {
       const scheduledDate = new Date(data.scheduledDate);
       const recurringJobsData = this.jobDomainService.generateRecurringJobs(
         job,
@@ -49,7 +51,7 @@ export class JobsService implements IJobsService {
         12, // Create 12 future jobs
       );
       // Filter out null values and ensure proper types for Prisma
-      const cleanData = recurringJobsData.map(j => ({
+      const cleanData = recurringJobsData.map((j) => ({
         ...j,
         reminderSent: j.reminderSent ?? false,
       }));
@@ -68,16 +70,16 @@ export class JobsService implements IJobsService {
       // Cleaners only see jobs assigned to them
       if (userRole === 'CLEANER') {
         return this.jobsRepository.findAllWithRelations({
-          businessId: businessId,
+          businessId,
           cleanerId: userId, // Only jobs assigned to this cleaner
         });
       }
 
       // Owners see all jobs
       return this.jobsRepository.findAllWithRelations({
-        businessId: businessId,
+        businessId,
       });
-    } catch (error) {
+    } catch {
       // If business doesn't exist yet, return empty array
       return [];
     }
@@ -107,12 +109,12 @@ export class JobsService implements IJobsService {
       try {
         const business = await this.businessService.findByUserId(userId);
         businessId = business.id;
-      } catch (error) {
+      } catch (err) {
         // If business doesn't exist yet, return empty array
-        if (error instanceof NotFoundException) {
+        if (err instanceof NotFoundException) {
           return [];
         }
-        throw error;
+        throw err;
       }
     }
 
@@ -121,8 +123,8 @@ export class JobsService implements IJobsService {
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
 
-    const whereClause: any = {
-      businessId: businessId,
+    const whereClause: Prisma.JobWhereInput = {
+      businessId,
       scheduledDate: {
         gte: today,
         lt: tomorrow,
@@ -168,14 +170,14 @@ export class JobsService implements IJobsService {
       businessId = business.id;
     }
 
-    const whereClause: any = { id: jobId };
+    const whereClause: Prisma.JobWhereInput = { id: jobId };
 
     // Cleaners can only see jobs assigned to them
     if (userRole === 'CLEANER') {
       whereClause.cleanerId = userId;
     }
 
-    const job = await this.prisma.job.findUnique({
+    const job = await this.prisma.job.findFirst({
       where: whereClause,
       include: {
         client: true,
@@ -202,12 +204,7 @@ export class JobsService implements IJobsService {
     return job;
   }
 
-  async update(
-    userId: string,
-    jobId: string,
-    data: UpdateJobDto,
-    userRole?: string,
-  ) {
+  async update(userId: string, jobId: string, data: UpdateJobDto, userRole?: string) {
     await this.findOne(userId, jobId, userRole); // Verify access
 
     // Cleaners can only update status, not job details
@@ -222,12 +219,24 @@ export class JobsService implements IJobsService {
     }
 
     // Owners can update everything
-    const updateData: any = {};
-    
-    if (data.cleanerId !== undefined) updateData.cleanerId = data.cleanerId;
-    if (data.scheduledDate) updateData.scheduledDate = new Date(data.scheduledDate);
-    if (data.scheduledTime !== undefined) updateData.scheduledTime = data.scheduledTime;
-    if (data.status) updateData.status = data.status as 'SCHEDULED' | 'IN_PROGRESS' | 'COMPLETED';
+    const updateData: Prisma.JobUpdateInput = {};
+
+    if (data.cleanerId !== undefined) {
+      if (data.cleanerId === '' || data.cleanerId === null) {
+        updateData.cleaner = { disconnect: true };
+      } else {
+        updateData.cleaner = { connect: { id: data.cleanerId } };
+      }
+    }
+    if (data.scheduledDate) {
+      updateData.scheduledDate = new Date(data.scheduledDate);
+    }
+    if (data.scheduledTime !== undefined) {
+      updateData.scheduledTime = data.scheduledTime;
+    }
+    if (data.status) {
+      updateData.status = data.status as 'SCHEDULED' | 'IN_PROGRESS' | 'COMPLETED';
+    }
     if (data.reminderEnabled !== undefined) {
       updateData.reminderEnabled = data.reminderEnabled;
       // Reset reminder sent status if reminder is re-enabled
@@ -266,16 +275,21 @@ export class JobsService implements IJobsService {
     imageUrl: string,
     photoType: 'BEFORE' | 'AFTER',
     userRole?: string,
-  ) {
+  ): Promise<JobPhotoEntity> {
     await this.findOne(userId, jobId, userRole); // Verify access
 
-    return this.prisma.jobPhoto.create({
+    const photo = await this.prisma.jobPhoto.create({
       data: {
         jobId,
         imageUrl,
         photoType,
       },
     });
+
+    return {
+      ...photo,
+      timestamp: photo.createdAt, // Use createdAt as timestamp
+    } as JobPhotoEntity;
   }
 
   async updateChecklistItem(
@@ -284,7 +298,7 @@ export class JobsService implements IJobsService {
     itemId: string,
     completed: boolean,
     userRole?: string,
-  ) {
+  ): Promise<JobChecklistItemEntity> {
     await this.findOne(userId, jobId, userRole); // Verify access
 
     // Verify the checklist item belongs to this job
@@ -296,10 +310,12 @@ export class JobsService implements IJobsService {
       throw new NotFoundException('Checklist item not found');
     }
 
-    return this.prisma.jobChecklist.update({
+    const updated = await this.prisma.jobChecklist.update({
       where: { id: itemId },
       data: { completed },
     });
+
+    return updated as JobChecklistItemEntity;
   }
 
   async getWhatsAppLinkForPhotos(
@@ -309,7 +325,7 @@ export class JobsService implements IJobsService {
     userRole?: string,
   ) {
     const job = await this.findOne(userId, jobId, userRole);
-    
+
     if (!job.client.phone) {
       return {
         whatsappUrl: null,
@@ -325,14 +341,8 @@ export class JobsService implements IJobsService {
       business,
     };
 
-    const message = this.whatsappService.generateJobPhotosMessage(
-      jobWithBusiness,
-      photoType,
-    );
-    const whatsappUrl = this.whatsappService.generateWhatsAppLink(
-      job.client.phone,
-      message,
-    );
+    const message = this.whatsappService.generateJobPhotosMessage(jobWithBusiness, photoType);
+    const whatsappUrl = this.whatsappService.generateWhatsAppLink(job.client.phone, message);
 
     return {
       whatsappUrl,
@@ -342,13 +352,9 @@ export class JobsService implements IJobsService {
     };
   }
 
-  async getWhatsAppLinkForCompletion(
-    userId: string,
-    jobId: string,
-    userRole?: string,
-  ) {
+  async getWhatsAppLinkForCompletion(userId: string, jobId: string, userRole?: string) {
     const job = await this.findOne(userId, jobId, userRole);
-    
+
     if (!job.client.phone) {
       return {
         whatsappUrl: null,
@@ -364,13 +370,8 @@ export class JobsService implements IJobsService {
       business,
     };
 
-    const message = this.whatsappService.generateJobCompletionMessage(
-      jobWithBusiness,
-    );
-    const whatsappUrl = this.whatsappService.generateWhatsAppLink(
-      job.client.phone,
-      message,
-    );
+    const message = this.whatsappService.generateJobCompletionMessage(jobWithBusiness);
+    const whatsappUrl = this.whatsappService.generateWhatsAppLink(job.client.phone, message);
 
     return {
       whatsappUrl,
@@ -379,4 +380,3 @@ export class JobsService implements IJobsService {
     };
   }
 }
-

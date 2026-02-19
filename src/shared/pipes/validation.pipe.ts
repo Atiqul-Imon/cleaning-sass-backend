@@ -7,8 +7,8 @@ import { plainToInstance } from 'class-transformer';
  * Enhanced validation with better error messages
  */
 @Injectable()
-export class CustomValidationPipe implements PipeTransform<any> {
-  async transform(value: any, { metatype }: ArgumentMetadata) {
+export class CustomValidationPipe implements PipeTransform {
+  async transform(value: unknown, { metatype }: ArgumentMetadata): Promise<unknown> {
     if (!metatype || !this.toValidate(metatype)) {
       return value;
     }
@@ -36,12 +36,20 @@ export class CustomValidationPipe implements PipeTransform<any> {
     return object;
   }
 
-  private toValidate(metatype: Function): boolean {
-    const types: Function[] = [String, Boolean, Number, Array, Object];
+  private toValidate(metatype: new (...args: unknown[]) => unknown): boolean {
+    const types: Array<new (...args: unknown[]) => unknown> = [
+      String,
+      Boolean,
+      Number,
+      Array,
+      Object,
+    ];
     return !types.includes(metatype);
   }
 
-  private formatErrors(errors: any[]): Record<string, string[]> {
+  private formatErrors(
+    errors: Array<{ property: string; constraints?: Record<string, string> }>,
+  ): Record<string, string[]> {
     const formatted: Record<string, string[]> = {};
 
     errors.forEach((error) => {
@@ -54,6 +62,3 @@ export class CustomValidationPipe implements PipeTransform<any> {
     return formatted;
   }
 }
-
-
-

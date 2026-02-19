@@ -16,4 +16,3 @@ import { PrismaModule } from '../prisma/prisma.module';
   exports: [InvoicesService],
 })
 export class InvoicesModule {}
-

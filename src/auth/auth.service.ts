@@ -45,7 +45,7 @@ export class AuthService {
   async changePassword(userId: string, currentPassword: string, newPassword: string) {
     const adminClient = this.supabaseService.getAdminClient();
     const anonClient = this.supabaseService.getAnonClient();
-    
+
     // First, get user email
     const { data: userData } = await adminClient.auth.admin.getUserById(userId);
     if (!userData?.user?.email) {
@@ -76,14 +76,16 @@ export class AuthService {
 
   async requestPasswordReset(email: string) {
     const adminClient = this.supabaseService.getAdminClient();
-    
+
     // Check if user exists
     const { data: users } = await adminClient.auth.admin.listUsers();
-    const user = users?.users.find(u => u.email === email);
-    
+    const user = users?.users.find((u) => u.email === email);
+
     if (!user) {
       // Don't reveal if user exists for security
-      return { message: 'If an account exists with this email, a password reset link has been sent.' };
+      return {
+        message: 'If an account exists with this email, a password reset link has been sent.',
+      };
     }
 
     // Generate password reset link
@@ -104,6 +106,3 @@ export class AuthService {
     };
   }
 }
-
-
-

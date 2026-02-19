@@ -1,4 +1,13 @@
-import { IsString, IsOptional, IsEnum, IsDateString, IsBoolean, IsNotEmpty, Matches, MinLength } from 'class-validator';
+import {
+  IsString,
+  IsOptional,
+  IsEnum,
+  IsDateString,
+  IsBoolean,
+  IsNotEmpty,
+  Matches,
+  MinLength,
+} from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
 
@@ -30,7 +39,7 @@ export class CreateJobDto {
   @IsString()
   @IsNotEmpty({ message: 'Client ID is required' })
   @MinLength(1, { message: 'Client ID cannot be empty' })
-  clientId: string;
+  clientId!: string;
 
   @ApiPropertyOptional({
     description: 'Cleaner ID (optional)',
@@ -46,7 +55,7 @@ export class CreateJobDto {
     example: JobType.ONE_OFF,
   })
   @IsEnum(JobType, { message: 'Job type must be ONE_OFF or RECURRING' })
-  type: JobType;
+  type!: JobType;
 
   @ApiPropertyOptional({
     enum: JobFrequency,
@@ -63,7 +72,7 @@ export class CreateJobDto {
   })
   @IsDateString({}, { message: 'Scheduled date must be a valid date string' })
   @IsNotEmpty({ message: 'Scheduled date is required' })
-  scheduledDate: string;
+  scheduledDate!: string;
 
   @ApiPropertyOptional({
     description: 'Scheduled time (HH:mm format)',
@@ -83,7 +92,7 @@ export class CreateJobDto {
   })
   @IsBoolean()
   @IsOptional()
-  @Transform(({ value }) => value !== undefined ? Boolean(value) : true)
+  @Transform(({ value }) => (value !== undefined ? Boolean(value) : true))
   reminderEnabled?: boolean;
 
   @ApiPropertyOptional({
@@ -146,7 +155,7 @@ export class UpdateJobDto {
   })
   @IsBoolean()
   @IsOptional()
-  @Transform(({ value }) => value !== undefined ? Boolean(value) : undefined)
+  @Transform(({ value }) => (value !== undefined ? Boolean(value) : undefined))
   reminderEnabled?: boolean;
 
   @ApiPropertyOptional({
@@ -161,12 +170,3 @@ export class UpdateJobDto {
   })
   reminderTime?: string;
 }
-
-
-
-
-
-
-
-
-

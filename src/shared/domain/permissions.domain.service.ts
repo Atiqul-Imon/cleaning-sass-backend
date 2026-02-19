@@ -103,7 +103,9 @@ export class PermissionsDomainService {
    * Check if cleaner can view a specific job
    */
   canCleanerViewJob(role: UserRole, jobCleanerId?: string, userId?: string): boolean {
-    if (role !== 'CLEANER') return false;
+    if (role !== 'CLEANER') {
+      return false;
+    }
     return jobCleanerId === userId;
   }
 
@@ -121,6 +123,3 @@ export class PermissionsDomainService {
     return role === 'OWNER' || role === 'ADMIN' || role === 'CLEANER';
   }
 }
-
-
-

@@ -45,4 +45,3 @@ export interface InvoiceWithRelations extends InvoiceEntity {
     invoiceTemplate?: string | null;
   };
 }
-

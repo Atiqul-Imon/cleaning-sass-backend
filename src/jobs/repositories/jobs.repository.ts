@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { Prisma } from '@prisma/client';
 import { JobEntity, JobWithRelations } from '../entities/job.entity';
 import { IRepository } from '../../shared/interfaces/repository.interface';
 import { CreateJobDto, UpdateJobDto } from '../dto/job.dto';
@@ -10,23 +11,28 @@ import { CreateJobDto, UpdateJobDto } from '../dto/job.dto';
  * Implements repository pattern to separate data access from business logic
  */
 @Injectable()
-export class JobsRepository implements IRepository<JobEntity, any, UpdateJobDto> {
+export class JobsRepository implements IRepository<
+  JobEntity,
+  CreateJobDto & { businessId: string },
+  UpdateJobDto,
+  Prisma.JobWhereInput
+> {
   constructor(private prisma: PrismaService) {}
 
-  async create(data: any): Promise<JobEntity> {
+  async create(data: CreateJobDto & { businessId: string }): Promise<JobEntity> {
     return this.prisma.job.create({
       data,
     }) as Promise<JobEntity>;
   }
 
-  async findAll(where?: any): Promise<JobEntity[]> {
+  async findAll(where?: Prisma.JobWhereInput): Promise<JobEntity[]> {
     return this.prisma.job.findMany({
       where,
       orderBy: { scheduledDate: 'desc' },
     }) as Promise<JobEntity[]>;
   }
 
-  async findOne(id: string, where?: any): Promise<JobEntity | null> {
+  async findOne(id: string, where?: Prisma.JobWhereInput): Promise<JobEntity | null> {
     return this.prisma.job.findFirst({
       where: {
         id,
@@ -35,7 +41,10 @@ export class JobsRepository implements IRepository<JobEntity, any, UpdateJobDto>
     }) as Promise<JobEntity | null>;
   }
 
-  async findOneWithRelations(id: string, where?: any): Promise<JobWithRelations | null> {
+  async findOneWithRelations(
+    id: string,
+    where?: Prisma.JobWhereInput,
+  ): Promise<JobWithRelations | null> {
     return this.prisma.job.findFirst({
       where: {
         id,
@@ -87,7 +96,7 @@ export class JobsRepository implements IRepository<JobEntity, any, UpdateJobDto>
     }) as Promise<JobWithRelations | null>;
   }
 
-  async findAllWithRelations(where?: any): Promise<JobWithRelations[]> {
+  async findAllWithRelations(where?: Prisma.JobWhereInput): Promise<JobWithRelations[]> {
     return this.prisma.job.findMany({
       where,
       include: {
@@ -122,7 +131,7 @@ export class JobsRepository implements IRepository<JobEntity, any, UpdateJobDto>
     }) as Promise<JobWithRelations[]>;
   }
 
-  async update(id: string, data: any): Promise<JobEntity> {
+  async update(id: string, data: Prisma.JobUpdateInput): Promise<JobEntity> {
     return this.prisma.job.update({
       where: { id },
       data,
@@ -135,10 +144,9 @@ export class JobsRepository implements IRepository<JobEntity, any, UpdateJobDto>
     });
   }
 
-  async count(where?: any): Promise<number> {
+  async count(where?: Prisma.JobWhereInput): Promise<number> {
     return this.prisma.job.count({
       where,
     });
   }
 }
-

@@ -9,11 +9,3 @@ import { PrismaModule } from '../prisma/prisma.module';
   exports: [RemindersService, EmailService],
 })
 export class RemindersModule {}
-
-
-
-
-
-
-
-

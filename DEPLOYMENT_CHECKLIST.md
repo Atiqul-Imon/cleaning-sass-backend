@@ -1,4 +1,5 @@
 # Deployment Readiness Checklist
+
 ## FieldNeat Backend - Digital Ocean Deployment
 
 Use this checklist to ensure your backend is ready for deployment.
@@ -223,4 +224,3 @@ If deployment fails:
 **Ready for Deployment?** ✅
 
 If all items are checked, you're ready to deploy!
-

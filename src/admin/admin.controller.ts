@@ -1,14 +1,7 @@
-import {
-  Controller,
-  Get,
-  Param,
-  Query,
-  UseGuards,
-} from '@nestjs/common';
+import { Controller, Get, Param, Query, UseGuards } from '@nestjs/common';
 import { AdminService } from './admin.service';
 import { AuthGuard } from '../auth/auth.guard';
-import { RolesGuard } from '../auth/roles.guard';
-import { Roles } from '../auth/roles.guard';
+import { RolesGuard, Roles } from '../auth/roles.guard';
 
 @Controller('admin')
 @UseGuards(AuthGuard, RolesGuard)
@@ -22,10 +15,7 @@ export class AdminController {
   }
 
   @Get('businesses')
-  async getAllBusinesses(
-    @Query('page') page?: string,
-    @Query('limit') limit?: string,
-  ) {
+  async getAllBusinesses(@Query('page') page?: string, @Query('limit') limit?: string) {
     const pageNum = page ? parseInt(page, 10) : 1;
     const limitNum = limit ? parseInt(limit, 10) : 20;
     return this.adminService.getAllBusinesses(pageNum, limitNum);
@@ -37,15 +27,9 @@ export class AdminController {
   }
 
   @Get('users')
-  async getAllUsers(
-    @Query('page') page?: string,
-    @Query('limit') limit?: string,
-  ) {
+  async getAllUsers(@Query('page') page?: string, @Query('limit') limit?: string) {
     const pageNum = page ? parseInt(page, 10) : 1;
     const limitNum = limit ? parseInt(limit, 10) : 20;
     return this.adminService.getAllUsers(pageNum, limitNum);
   }
 }
-
-
-

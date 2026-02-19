@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { ClientEntity, ClientWithRelations } from '../entities/client.entity';
+import { ClientEntity } from '../entities/client.entity';
 
 /**
  * Client Response DTO
@@ -7,13 +7,13 @@ import { ClientEntity, ClientWithRelations } from '../entities/client.entity';
  */
 export class ClientResponseDto implements ClientEntity {
   @ApiProperty({ description: 'Client ID' })
-  id: string;
+  id!: string;
 
   @ApiProperty({ description: 'Business ID' })
-  businessId: string;
+  businessId!: string;
 
   @ApiProperty({ description: 'Client name' })
-  name: string;
+  name!: string;
 
   @ApiPropertyOptional({ description: 'Phone number' })
   phone?: string | null;
@@ -31,10 +31,10 @@ export class ClientResponseDto implements ClientEntity {
   } | null;
 
   @ApiProperty({ description: 'Created at' })
-  createdAt: Date;
+  createdAt!: Date;
 
   @ApiProperty({ description: 'Updated at' })
-  updatedAt: Date;
+  updatedAt!: Date;
 }
 
 /**
@@ -56,6 +56,3 @@ export class ClientWithRelationsResponseDto extends ClientResponseDto {
     status: string;
   }>;
 }
-
-
-

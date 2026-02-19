@@ -53,4 +53,3 @@ export interface JobWithRelations extends JobEntity {
     invoiceNumber: string;
   } | null;
 }
-

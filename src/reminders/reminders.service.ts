@@ -92,11 +92,14 @@ export class RemindersService {
               <div class="invoice-details">
                 <p><strong>Invoice Number:</strong> ${invoice.invoiceNumber}</p>
                 <p><strong>Amount Due:</strong> <span class="amount">£${Number(invoice.totalAmount).toFixed(2)}</span></p>
-                <p><strong>Due Date:</strong> ${new Date(invoice.dueDate).toLocaleDateString('en-GB', {
-                  day: 'numeric',
-                  month: 'long',
-                  year: 'numeric',
-                })}</p>
+                <p><strong>Due Date:</strong> ${new Date(invoice.dueDate).toLocaleDateString(
+                  'en-GB',
+                  {
+                    day: 'numeric',
+                    month: 'long',
+                    year: 'numeric',
+                  },
+                )}</p>
                 ${invoice.job ? `<p><strong>Service:</strong> ${invoice.job.type} - ${new Date(invoice.job.scheduledDate).toLocaleDateString('en-GB')}</p>` : ''}
               </div>
               <p>Please arrange payment at your earliest convenience. If you have already made payment, please disregard this reminder.</p>
@@ -139,9 +142,12 @@ ${invoice.business.name}
 
     // Try to get email from client notes or use a placeholder
     // Note: In production, add email field to Client model
-    const clientEmail = (invoice.client as any).email || 
-                       (invoice.client.notes && typeof invoice.client.notes === 'object' && (invoice.client.notes as any).email) ||
-                       null;
+    const clientEmail =
+      invoice.client.email ||
+      (invoice.client.notes &&
+        typeof invoice.client.notes === 'object' &&
+        invoice.client.notes.email) ||
+      null;
 
     if (clientEmail) {
       await this.emailService.sendEmail({
@@ -161,4 +167,3 @@ ${invoice.business.name}
     await this.sendPaymentReminders();
   }
 }
-

@@ -1,4 +1,5 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { BusinessService } from '../business/business.service';
 import { CreateClientDto, UpdateClientDto } from './dto/client.dto';
@@ -27,7 +28,7 @@ export class ClientsService implements IClientsService {
 
     // Get business ID
     const business = await this.businessService.findByUserId(userId);
-    
+
     // Transform data using domain service
     const clientData = this.clientDomainService.transformClientData(data, business.id);
 
@@ -38,9 +39,9 @@ export class ClientsService implements IClientsService {
     try {
       const businessId = await this.businessIdService.getBusinessId(userId, userRole as any);
       return this.clientsRepository.findAllWithRelations({
-        businessId: businessId,
+        businessId,
       });
-    } catch (error) {
+    } catch {
       // If business doesn't exist yet, return empty array
       return [];
     }
@@ -50,7 +51,7 @@ export class ClientsService implements IClientsService {
     const businessId = await this.businessIdService.getBusinessId(userId, userRole as any);
 
     const client = await this.clientsRepository.findOneWithRelations(clientId, {
-      businessId: businessId,
+      businessId,
     });
 
     if (!client) {
@@ -60,7 +61,12 @@ export class ClientsService implements IClientsService {
     return client;
   }
 
-  async update(userId: string, clientId: string, data: UpdateClientDto, userRole?: string): Promise<ClientEntity> {
+  async update(
+    userId: string,
+    clientId: string,
+    data: UpdateClientDto,
+    userRole?: string,
+  ): Promise<ClientEntity> {
     // Verify access
     await this.findOne(userId, clientId, userRole);
 
@@ -87,7 +93,7 @@ export class ClientsService implements IClientsService {
     // Verify access
     await this.findOne(userId, clientId, userRole);
 
-    const whereClause: any = { clientId };
+    const whereClause: Prisma.JobWhereInput = { clientId };
 
     // Cleaners only see their assigned jobs for this client
     if (userRole === 'CLEANER') {
@@ -103,4 +109,3 @@ export class ClientsService implements IClientsService {
     });
   }
 }
-

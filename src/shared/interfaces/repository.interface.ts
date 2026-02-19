@@ -1,8 +1,10 @@
+import { Prisma } from '@prisma/client';
+
 /**
  * Generic Repository Interface
  * Base interface for repository pattern
  */
-export interface IRepository<T, TCreate, TUpdate> {
+export interface IRepository<T, TCreate, TUpdate, TWhere = Prisma.JsonObject> {
   /**
    * Create a new entity
    */
@@ -11,12 +13,12 @@ export interface IRepository<T, TCreate, TUpdate> {
   /**
    * Find all entities
    */
-  findAll(where?: any): Promise<T[]>;
+  findAll(where?: TWhere): Promise<T[]>;
 
   /**
    * Find a single entity by ID
    */
-  findOne(id: string, where?: any): Promise<T | null>;
+  findOne(id: string, where?: TWhere): Promise<T | null>;
 
   /**
    * Update an entity
@@ -31,8 +33,5 @@ export interface IRepository<T, TCreate, TUpdate> {
   /**
    * Count entities
    */
-  count(where?: any): Promise<number>;
+  count(where?: TWhere): Promise<number>;
 }
-
-
-

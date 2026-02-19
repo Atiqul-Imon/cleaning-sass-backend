@@ -8,31 +8,37 @@ export interface IInvoicesService {
   /**
    * Create an invoice from a job
    */
-  createFromJob(userId: string, jobId: string, amount: number): Promise<any>;
+  createFromJob(userId: string, jobId: string, amount: number): Promise<InvoiceEntity>;
 
   /**
    * Find all invoices for a user
    */
-  findAll(userId: string): Promise<any[]>;
+  findAll(userId: string): Promise<InvoiceWithRelations[]>;
 
   /**
    * Find a single invoice by ID
    */
-  findOne(userId: string, invoiceId: string): Promise<any>;
+  findOne(userId: string, invoiceId: string): Promise<InvoiceWithRelations>;
 
   /**
    * Update an invoice
    */
-  update(userId: string, invoiceId: string, data: { status?: 'PAID' | 'UNPAID'; paymentMethod?: 'BANK_TRANSFER' | 'CARD' | 'CASH' }): Promise<any>;
+  update(
+    userId: string,
+    invoiceId: string,
+    data: { status?: 'PAID' | 'UNPAID'; paymentMethod?: 'BANK_TRANSFER' | 'CARD' | 'CASH' },
+  ): Promise<InvoiceEntity>;
 
   /**
    * Mark invoice as paid
    */
-  markAsPaid(userId: string, invoiceId: string, paymentMethod: string): Promise<any>;
+  markAsPaid(userId: string, invoiceId: string, paymentMethod: string): Promise<InvoiceEntity>;
 
   /**
    * Get WhatsApp link for invoice
    */
-  getWhatsAppLink(userId: string, invoiceId: string): Promise<{ whatsappUrl: string | null; phoneNumber?: string }>;
+  getWhatsAppLink(
+    userId: string,
+    invoiceId: string,
+  ): Promise<{ whatsappUrl: string | null; phoneNumber?: string }>;
 }
-

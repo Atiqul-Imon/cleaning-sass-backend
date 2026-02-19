@@ -90,6 +90,7 @@ server {
 ```
 
 Enable site:
+
 ```bash
 ln -s /etc/nginx/sites-available/cleaning-saas-backend /etc/nginx/sites-enabled/
 nginx -t
@@ -127,11 +128,13 @@ docker-compose logs -f --tail=50
 ```
 
 Make executable:
+
 ```bash
 chmod +x /opt/cleaning-saas-backend/update.sh
 ```
 
 Usage:
+
 ```bash
 ./update.sh
 ```
@@ -260,14 +263,9 @@ systemctl restart docker
 ## Support
 
 For issues:
+
 1. Check application logs: `docker-compose logs -f`
 2. Check Nginx logs: `tail -f /var/log/nginx/error.log`
 3. Verify environment variables
 4. Test database connection
 5. Review Digital Ocean monitoring dashboard
-
-
-
-
-
-

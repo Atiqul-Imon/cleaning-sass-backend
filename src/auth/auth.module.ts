@@ -14,4 +14,3 @@ import { PrismaModule } from '../prisma/prisma.module';
   exports: [AuthService, SupabaseService, AuthGuard, RolesGuard],
 })
 export class AuthModule {}
-

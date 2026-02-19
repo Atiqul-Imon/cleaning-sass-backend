@@ -1,4 +1,5 @@
 import { Controller, Get, UseGuards, Post, Body } from '@nestjs/common';
+import type { AuthenticatedUser } from '../shared/types/user.types';
 import { AuthGuard } from './auth.guard';
 import { CurrentUser } from './auth.decorator';
 import { AuthService } from './auth.service';
@@ -15,7 +16,7 @@ export class AuthController {
 
   @Get('me')
   @UseGuards(AuthGuard)
-  async getMe(@CurrentUser() user: any) {
+  async getMe(@CurrentUser() user: AuthenticatedUser) {
     const role = await this.authService.getUserRole(user.id);
     return {
       id: user.id,
@@ -26,24 +27,18 @@ export class AuthController {
 
   @Post('set-role')
   @UseGuards(AuthGuard)
-  async setRole(
-    @CurrentUser() user: any,
-    @Body('role') role: UserRole,
-  ) {
+  async setRole(@CurrentUser() user: AuthenticatedUser, @Body('role') role: UserRole) {
     return this.authService.setUserRole(user.id, role);
   }
 
   @Post('signup')
-  async signup(
-    @Body('email') email: string,
-    @Body('password') password: string,
-  ) {
+  async signup(@Body('email') email: string, @Body('password') password: string) {
     const adminClient = this.supabaseService.getAdminClient();
-    
+
     // Check if user already exists
     const { data: existingUsers } = await adminClient.auth.admin.listUsers();
-    const existing = existingUsers?.users.find(u => u.email === email);
-    
+    const existing = existingUsers?.users.find((u) => u.email === email);
+
     if (existing) {
       throw new Error('User with this email already exists');
     }
@@ -60,11 +55,7 @@ export class AuthController {
     }
 
     // Create user in our database with default OWNER role
-    await this.authService.createOrUpdateUser(
-      data.user.id,
-      data.user.email!,
-      'OWNER',
-    );
+    await this.authService.createOrUpdateUser(data.user.id, data.user.email!, 'OWNER');
 
     return {
       user: data.user,
@@ -75,7 +66,7 @@ export class AuthController {
   @Post('change-password')
   @UseGuards(AuthGuard)
   async changePassword(
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
     @Body() changePasswordDto: ChangePasswordDto,
   ) {
     return this.authService.changePassword(
@@ -90,5 +81,3 @@ export class AuthController {
     return this.authService.requestPasswordReset(email);
   }
 }
-
-

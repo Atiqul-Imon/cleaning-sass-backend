@@ -48,15 +48,12 @@ export class ErrorResponseDto {
   message?: string;
 
   @ApiPropertyOptional()
-  details?: any;
+  details?: unknown;
 
-  constructor(error: string, message?: string, details?: any) {
+  constructor(error: string, message?: string, details?: unknown) {
     this.success = false;
     this.error = error;
     this.message = message;
     this.details = details;
   }
 }
-
-
-

@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { SupabaseService } from '../auth/supabase.service';
 import { BusinessService } from '../business/business.service';
@@ -82,7 +87,9 @@ export class CleanersService {
     });
 
     if (supabaseError || !supabaseData.user) {
-      throw new BadRequestException(`Failed to create user: ${supabaseError?.message || 'Unknown error'}`);
+      throw new BadRequestException(
+        `Failed to create user: ${supabaseError?.message || 'Unknown error'}`,
+      );
     }
 
     // Create user in our database with CLEANER role
@@ -294,7 +301,7 @@ export class CleanersService {
     const length = 12;
     const charset = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*';
     let password = '';
-    
+
     // Ensure at least one of each type
     password += 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'[Math.floor(Math.random() * 26)];
     password += 'abcdefghijklmnopqrstuvwxyz'[Math.floor(Math.random() * 26)];
@@ -307,16 +314,9 @@ export class CleanersService {
     }
 
     // Shuffle the password
-    return password.split('').sort(() => Math.random() - 0.5).join('');
+    return password
+      .split('')
+      .sort(() => Math.random() - 0.5)
+      .join('');
   }
 }
-
-
-
-
-
-
-
-
-
-

@@ -36,6 +36,7 @@ The workflow will automatically trigger on push. You can also:
 ## Workflow Location
 
 The workflow is now at:
+
 ```
 backend/.github/workflows/deploy-backend.yml
 ```
@@ -50,6 +51,7 @@ This is correct since the backend is a separate git repository.
 ## Verify Secrets Are Set
 
 Make sure these secrets are in the **backend repository** (not the parent repo):
+
 - `DO_HOST`
 - `DO_USER`
 - `DO_SSH_KEY`
@@ -60,4 +62,3 @@ Go to: Repository → Settings → Secrets and variables → Actions
 ---
 
 **Ready to deploy!** Just commit and push the workflow file. 🚀
-

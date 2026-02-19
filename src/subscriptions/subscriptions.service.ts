@@ -16,10 +16,7 @@ export class SubscriptionsService {
       where: { businessId: business.id },
       include: {
         usage: {
-          orderBy: [
-            { year: 'desc' },
-            { month: 'desc' },
-          ],
+          orderBy: [{ year: 'desc' }, { month: 'desc' }],
           take: 12, // Last 12 months
         },
       },
@@ -136,10 +133,7 @@ export class SubscriptionsService {
       where: { businessId: business.id },
       include: {
         usage: {
-          orderBy: [
-            { year: 'desc' },
-            { month: 'desc' },
-          ],
+          orderBy: [{ year: 'desc' }, { month: 'desc' }],
           take: 12,
         },
       },
@@ -182,11 +176,3 @@ export class SubscriptionsService {
     }
   }
 }
-
-
-
-
-
-
-
-

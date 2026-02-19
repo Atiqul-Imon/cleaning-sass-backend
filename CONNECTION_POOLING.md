@@ -1,11 +1,13 @@
 # Database Connection Pooling Optimization
 
 ## Overview
+
 Prisma uses connection pooling to manage database connections efficiently. This document explains how to optimize connection pooling for better performance.
 
 ## Connection String Configuration
 
 ### For Supabase (Recommended)
+
 If using Supabase, use the **pooler connection string** instead of the direct connection:
 
 ```
@@ -17,6 +19,7 @@ DATABASE_URL="postgresql://user:password@host:6543/dbname?pgbouncer=true"
 ```
 
 ### Connection Pool Parameters
+
 Add these parameters to your connection string for optimal pooling:
 
 ```
@@ -24,6 +27,7 @@ DATABASE_URL="postgresql://user:password@host:6543/dbname?pgbouncer=true&connect
 ```
 
 ### Parameters Explained:
+
 - `connection_limit`: Maximum number of connections in the pool (default: 10)
   - For small apps: 5-10
   - For medium apps: 10-20
@@ -34,6 +38,7 @@ DATABASE_URL="postgresql://user:password@host:6543/dbname?pgbouncer=true&connect
 ## Prisma Configuration
 
 The PrismaService has been configured to:
+
 - Use connection pooling automatically
 - Log queries in development mode
 - Handle connection lifecycle properly
@@ -41,11 +46,13 @@ The PrismaService has been configured to:
 ## Monitoring
 
 ### Check Connection Pool Usage
+
 ```sql
 SELECT count(*) FROM pg_stat_activity WHERE datname = 'your_database';
 ```
 
 ### Check Active Connections
+
 ```sql
 SELECT count(*) FROM pg_stat_activity WHERE state = 'active';
 ```
@@ -60,14 +67,8 @@ SELECT count(*) FROM pg_stat_activity WHERE state = 'active';
 ## Supabase Specific
 
 Supabase provides two connection strings:
+
 1. **Direct Connection** (port 5432): For migrations and admin tasks
 2. **Pooler Connection** (port 6543): For application use (recommended)
 
 Always use the pooler connection (port 6543) for your application.
-
-
-
-
-
-
-

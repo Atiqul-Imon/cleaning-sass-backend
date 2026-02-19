@@ -1,8 +1,8 @@
-import { IsString, IsOptional, IsBoolean, IsEmail } from 'class-validator';
+import { IsString, IsOptional, IsBoolean } from 'class-validator';
 
 export class CreateBusinessDto {
   @IsString()
-  name: string;
+  name!: string;
 
   @IsString()
   @IsOptional()
@@ -50,12 +50,3 @@ export class UpdateBusinessDto {
   @IsOptional()
   invoiceTemplate?: string;
 }
-
-
-
-
-
-
-
-
-

@@ -13,11 +13,11 @@ export class DashboardService {
 
   async getStats(userId: string, userRole?: string) {
     const todayJobs = await this.jobsService.findToday(userId, userRole);
-    
+
     // Only owners see financial stats
     if (userRole === 'OWNER') {
       const unpaidCount = await this.invoicesService.getUnpaidCount(userId);
-      
+
       const now = new Date();
       const monthlyEarnings = await this.invoicesService.getMonthlyEarnings(
         userId,
@@ -146,4 +146,3 @@ export class DashboardService {
     };
   }
 }
-

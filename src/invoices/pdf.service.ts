@@ -51,11 +51,18 @@ export class PdfService {
         doc.fontSize(10).font('Helvetica').text('INVOICE', 50, 80);
 
         // Invoice Number and Date
-        doc.fontSize(16).font('Helvetica-Bold').text(invoice.invoiceNumber, 400, 50, { align: 'right' });
+        doc
+          .fontSize(16)
+          .font('Helvetica-Bold')
+          .text(invoice.invoiceNumber, 400, 50, { align: 'right' });
         doc.fontSize(10).font('Helvetica').text('Invoice Date:', 400, 75, { align: 'right' });
-        doc.text(new Date(invoice.createdAt).toLocaleDateString('en-GB'), 400, 90, { align: 'right' });
+        doc.text(new Date(invoice.createdAt).toLocaleDateString('en-GB'), 400, 90, {
+          align: 'right',
+        });
         doc.text('Due Date:', 400, 105, { align: 'right' });
-        doc.text(new Date(invoice.dueDate).toLocaleDateString('en-GB'), 400, 120, { align: 'right' });
+        doc.text(new Date(invoice.dueDate).toLocaleDateString('en-GB'), 400, 120, {
+          align: 'right',
+        });
 
         // Bill From
         doc.fontSize(12).font('Helvetica-Bold').text('Bill From:', 50, 150);
@@ -101,9 +108,15 @@ export class PdfService {
         doc.fontSize(12).font('Helvetica-Bold').text('Description', 50, startY);
         doc.text('Amount', 450, startY, { align: 'right' });
 
-        doc.moveTo(50, startY + 20).lineTo(550, startY + 20).stroke();
+        doc
+          .moveTo(50, startY + 20)
+          .lineTo(550, startY + 20)
+          .stroke();
 
-        doc.fontSize(10).font('Helvetica').text('Cleaning Service', 50, startY + 35);
+        doc
+          .fontSize(10)
+          .font('Helvetica')
+          .text('Cleaning Service', 50, startY + 35);
         doc.text(`£${Number(invoice.amount).toFixed(2)}`, 450, startY + 35, { align: 'right' });
 
         // VAT
@@ -116,8 +129,13 @@ export class PdfService {
 
         // Total
         doc.moveTo(50, currentY).lineTo(550, currentY).stroke();
-        doc.fontSize(14).font('Helvetica-Bold').text('Total', 50, currentY + 15);
-        doc.text(`£${Number(invoice.totalAmount).toFixed(2)}`, 450, currentY + 15, { align: 'right' });
+        doc
+          .fontSize(14)
+          .font('Helvetica-Bold')
+          .text('Total', 50, currentY + 15);
+        doc.text(`£${Number(invoice.totalAmount).toFixed(2)}`, 450, currentY + 15, {
+          align: 'right',
+        });
 
         // Status
         currentY += 50;
@@ -129,21 +147,27 @@ export class PdfService {
             currentY + 15,
           );
           if (invoice.paymentMethod) {
-            doc.text(`Payment Method: ${invoice.paymentMethod.replace('_', ' ')}`, 50, currentY + 30);
+            doc.text(
+              `Payment Method: ${invoice.paymentMethod.replace('_', ' ')}`,
+              50,
+              currentY + 30,
+            );
           }
         }
 
         // Footer
         const pageHeight = doc.page.height;
-        doc.fontSize(8).font('Helvetica').text('Thank you for your business!', 50, pageHeight - 50, {
-          align: 'center',
-        });
+        doc
+          .fontSize(8)
+          .font('Helvetica')
+          .text('Thank you for your business!', 50, pageHeight - 50, {
+            align: 'center',
+          });
 
         doc.end();
       } catch (error) {
-        reject(error);
+        reject(error instanceof Error ? error : new Error(String(error)));
       }
     });
   }
 }
-

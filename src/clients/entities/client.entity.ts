@@ -34,6 +34,3 @@ export interface ClientWithRelations extends ClientEntity {
     status: string;
   }>;
 }
-
-
-

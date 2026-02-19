@@ -34,4 +34,3 @@ import { SharedDomainModule } from '../shared/domain/shared-domain.module';
   exports: [JobsService, JobsRepository],
 })
 export class JobsModule {}
-

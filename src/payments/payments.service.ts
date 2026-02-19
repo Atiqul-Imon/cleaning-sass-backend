@@ -6,7 +6,7 @@ import { SubscriptionsService } from '../subscriptions/subscriptions.service';
 
 @Injectable()
 export class PaymentsService {
-  private readonly stripe: Stripe;
+  private readonly stripe: Stripe | null = null;
   private readonly logger = new Logger(PaymentsService.name);
 
   constructor(
@@ -16,7 +16,7 @@ export class PaymentsService {
   ) {
     const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
     if (stripeSecretKey) {
-      this.stripe = new Stripe(stripeSecretKey, {
+      (this as unknown as { stripe: Stripe }).stripe = new Stripe(stripeSecretKey, {
         apiVersion: '2026-01-28.clover',
       });
     } else {
@@ -85,30 +85,35 @@ export class PaymentsService {
 
     // Handle the event
     switch (event.type) {
-      case 'checkout.session.completed':
-        const session = event.data.object as Stripe.Checkout.Session;
+      case 'checkout.session.completed': {
+        const session = event.data.object;
         await this.handleCheckoutCompleted(session);
         break;
+      }
 
-      case 'customer.subscription.updated':
-        const subscription = event.data.object as Stripe.Subscription;
+      case 'customer.subscription.updated': {
+        const subscription = event.data.object;
         await this.handleSubscriptionUpdated(subscription);
         break;
+      }
 
-      case 'customer.subscription.deleted':
-        const deletedSubscription = event.data.object as Stripe.Subscription;
+      case 'customer.subscription.deleted': {
+        const deletedSubscription = event.data.object;
         await this.handleSubscriptionDeleted(deletedSubscription);
         break;
+      }
 
-      case 'invoice.payment_succeeded':
-        const invoice = event.data.object as Stripe.Invoice;
-        await this.handlePaymentSucceeded(invoice);
+      case 'invoice.payment_succeeded': {
+        const invoice = event.data.object;
+        this.handlePaymentSucceeded(invoice);
         break;
+      }
 
-      case 'invoice.payment_failed':
-        const failedInvoice = event.data.object as Stripe.Invoice;
+      case 'invoice.payment_failed': {
+        const failedInvoice = event.data.object;
         await this.handlePaymentFailed(failedInvoice);
         break;
+      }
 
       default:
         this.logger.log(`Unhandled event type: ${event.type}`);
@@ -174,7 +179,7 @@ export class PaymentsService {
     this.logger.log(`Subscription cancelled for business ${dbSubscription.businessId}`);
   }
 
-  private async handlePaymentSucceeded(invoice: Stripe.Invoice) {
+  private handlePaymentSucceeded(invoice: Stripe.Invoice) {
     this.logger.log(`Payment succeeded for invoice ${invoice.id}`);
     // You can add additional logic here, like sending confirmation emails
   }
@@ -183,15 +188,17 @@ export class PaymentsService {
     // Stripe invoice subscription can be string ID or Subscription object
     const invoiceAny = invoice as any;
     let subscriptionId: string | null = null;
-    
+
     if (typeof invoiceAny.subscription === 'string') {
       subscriptionId = invoiceAny.subscription;
     } else if (invoiceAny.subscription && typeof invoiceAny.subscription === 'object') {
       subscriptionId = invoiceAny.subscription.id;
     }
-    
-    if (!subscriptionId) return;
-    
+
+    if (!subscriptionId) {
+      return;
+    }
+
     const dbSubscription = await this.prisma.subscription.findUnique({
       where: { stripeSubscriptionId: subscriptionId },
     });
@@ -217,4 +224,3 @@ export class PaymentsService {
     });
   }
 }
-

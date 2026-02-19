@@ -1,5 +1,7 @@
 import { CreateJobDto, UpdateJobDto } from '../dto/job.dto';
 import { JobEntity, JobWithRelations } from '../entities/job.entity';
+import { JobPhotoEntity } from '../entities/job-photo.entity';
+import { JobChecklistItemEntity } from '../entities/job-checklist.entity';
 
 /**
  * Jobs Service Interface
@@ -39,11 +41,22 @@ export interface IJobsService {
   /**
    * Add a photo to a job
    */
-  addPhoto(userId: string, jobId: string, imageUrl: string, photoType: 'BEFORE' | 'AFTER', userRole?: string): Promise<any>;
+  addPhoto(
+    userId: string,
+    jobId: string,
+    imageUrl: string,
+    photoType: 'BEFORE' | 'AFTER',
+    userRole?: string,
+  ): Promise<JobPhotoEntity>;
 
   /**
    * Update a checklist item
    */
-  updateChecklistItem(userId: string, jobId: string, itemId: string, completed: boolean, userRole?: string): Promise<any>;
+  updateChecklistItem(
+    userId: string,
+    jobId: string,
+    itemId: string,
+    completed: boolean,
+    userRole?: string,
+  ): Promise<JobChecklistItemEntity>;
 }
-

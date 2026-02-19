@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { CreateJobDto, UpdateJobDto } from '../dto/job.dto';
+import { CreateJobDto, UpdateJobDto, JobType } from '../dto/job.dto';
 import { JobEntity } from '../entities/job.entity';
 import { addWeeks } from 'date-fns';
 
@@ -33,14 +33,14 @@ export class JobDomainService {
       const scheduledDate = new Date(data.scheduledDate);
       const today = new Date();
       today.setHours(0, 0, 0, 0);
-      
+
       if (scheduledDate < today) {
         errors.push('Scheduled date cannot be in the past');
       }
     }
 
     // Validate recurring job has frequency
-    if (data.type === 'RECURRING' && !data.frequency) {
+    if (data.type === JobType.RECURRING && !data.frequency) {
       errors.push('Frequency is required for recurring jobs');
     }
 
@@ -66,7 +66,7 @@ export class JobDomainService {
       const scheduledDate = new Date(data.scheduledDate);
       const today = new Date();
       today.setHours(0, 0, 0, 0);
-      
+
       if (scheduledDate < today) {
         errors.push('Scheduled date cannot be in the past');
       }
@@ -113,12 +113,9 @@ export class JobDomainService {
     count: number,
   ): Array<Omit<JobEntity, 'id' | 'createdAt' | 'updatedAt'>> {
     const jobs: Array<Omit<JobEntity, 'id' | 'createdAt' | 'updatedAt'>> = [];
-    
+
     for (let i = 1; i <= count; i++) {
-      const nextDate =
-        frequency === 'WEEKLY'
-          ? addWeeks(startDate, i)
-          : addWeeks(startDate, i * 2);
+      const nextDate = frequency === 'WEEKLY' ? addWeeks(startDate, i) : addWeeks(startDate, i * 2);
 
       jobs.push({
         businessId: originalJob.businessId,
@@ -171,6 +168,3 @@ export class JobDomainService {
     return validTimes.includes(time);
   }
 }
-
-
-

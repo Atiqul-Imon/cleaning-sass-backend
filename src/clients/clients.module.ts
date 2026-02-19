@@ -15,4 +15,3 @@ import { SharedDomainModule } from '../shared/domain/shared-domain.module';
   exports: [ClientsService, ClientsRepository],
 })
 export class ClientsModule {}
-

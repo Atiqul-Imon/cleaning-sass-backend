@@ -17,7 +17,7 @@ export class InvoicesService implements IInvoicesService {
     private invoiceDomainService: InvoiceDomainService,
   ) {}
 
-  async createFromJob(userId: string, jobId: string, amount: number): Promise<any> {
+  async createFromJob(userId: string, jobId: string, amount: number): Promise<InvoiceEntity> {
     // Validate using domain service
     const validation = this.invoiceDomainService.validateCreateInvoice(amount);
     if (!validation.valid) {
@@ -40,7 +40,7 @@ export class InvoicesService implements IInvoicesService {
     // Calculate due date using domain service
     const dueDate = this.invoiceDomainService.calculateDueDate(30);
 
-    return this.prisma.invoice.create({
+    const invoice = await this.prisma.invoice.create({
       data: {
         jobId: job.id,
         businessId: business.id,
@@ -52,12 +52,20 @@ export class InvoicesService implements IInvoicesService {
         dueDate,
       },
     });
+
+    // Convert Prisma Decimal to number for entity
+    return {
+      ...invoice,
+      amount: Number(invoice.amount),
+      vatAmount: Number(invoice.vatAmount),
+      totalAmount: Number(invoice.totalAmount),
+    } as InvoiceEntity;
   }
 
-  async findAll(userId: string) {
+  async findAll(userId: string): Promise<InvoiceWithRelations[]> {
     const business = await this.businessService.findByUserId(userId);
 
-    return this.prisma.invoice.findMany({
+    const invoices = await this.prisma.invoice.findMany({
       where: { businessId: business.id },
       include: {
         client: true,
@@ -65,9 +73,17 @@ export class InvoicesService implements IInvoicesService {
       },
       orderBy: { createdAt: 'desc' },
     });
+
+    // Convert Prisma Decimal to number
+    return invoices.map((invoice) => ({
+      ...invoice,
+      amount: Number(invoice.amount),
+      vatAmount: Number(invoice.vatAmount),
+      totalAmount: Number(invoice.totalAmount),
+    })) as InvoiceWithRelations[];
   }
 
-  async findOne(userId: string, invoiceId: string) {
+  async findOne(userId: string, invoiceId: string): Promise<InvoiceWithRelations> {
     const business = await this.businessService.findByUserId(userId);
 
     const invoice = await this.prisma.invoice.findFirst({
@@ -91,28 +107,50 @@ export class InvoicesService implements IInvoicesService {
       throw new Error('Invoice not found');
     }
 
-    return invoice;
+    // Convert Prisma Decimal to number
+    return {
+      ...invoice,
+      amount: Number(invoice.amount),
+      vatAmount: Number(invoice.vatAmount),
+      totalAmount: Number(invoice.totalAmount),
+    } as InvoiceWithRelations;
   }
 
-  async update(userId: string, invoiceId: string, data: { status?: 'PAID' | 'UNPAID'; paymentMethod?: 'BANK_TRANSFER' | 'CARD' | 'CASH' }): Promise<any> {
+  async update(
+    userId: string,
+    invoiceId: string,
+    data: { status?: 'PAID' | 'UNPAID'; paymentMethod?: 'BANK_TRANSFER' | 'CARD' | 'CASH' },
+  ): Promise<InvoiceEntity> {
     // Validate using domain service
     const validation = this.invoiceDomainService.validateUpdateInvoice(data);
     if (!validation.valid) {
       throw new Error(validation.errors?.join(', ') || 'Validation failed');
     }
 
-    const invoice = await this.findOne(userId, invoiceId);
+    await this.findOne(userId, invoiceId);
 
-    return this.prisma.invoice.update({
+    const updated = await this.prisma.invoice.update({
       where: { id: invoiceId },
       data: {
         ...data,
         ...(data.status === 'PAID' && { paidAt: new Date() }),
       },
     });
+
+    // Convert Prisma Decimal to number
+    return {
+      ...updated,
+      amount: Number(updated.amount),
+      vatAmount: Number(updated.vatAmount),
+      totalAmount: Number(updated.totalAmount),
+    } as InvoiceEntity;
   }
 
-  async markAsPaid(userId: string, invoiceId: string, paymentMethod: string) {
+  async markAsPaid(
+    userId: string,
+    invoiceId: string,
+    paymentMethod: string,
+  ): Promise<InvoiceEntity> {
     return this.update(userId, invoiceId, {
       status: 'PAID',
       paymentMethod: paymentMethod as 'BANK_TRANSFER' | 'CARD' | 'CASH',
@@ -149,9 +187,12 @@ export class InvoicesService implements IInvoicesService {
     return invoices.reduce((sum, inv) => sum + Number(inv.totalAmount), 0);
   }
 
-  async getWhatsAppLink(userId: string, invoiceId: string): Promise<{ whatsappUrl: string | null; phoneNumber?: string }> {
+  async getWhatsAppLink(
+    userId: string,
+    invoiceId: string,
+  ): Promise<{ whatsappUrl: string | null; phoneNumber?: string }> {
     const invoice = await this.findOne(userId, invoiceId);
-    
+
     if (!invoice.client?.phone) {
       return {
         whatsappUrl: null,
@@ -159,10 +200,7 @@ export class InvoicesService implements IInvoicesService {
     }
 
     const message = this.whatsappService.generateInvoiceMessage(invoice);
-    const whatsappUrl = this.whatsappService.generateWhatsAppLink(
-      invoice.client.phone,
-      message,
-    );
+    const whatsappUrl = this.whatsappService.generateWhatsAppLink(invoice.client.phone, message);
 
     return {
       whatsappUrl,
@@ -170,7 +208,3 @@ export class InvoicesService implements IInvoicesService {
     };
   }
 }
-
-
-
-

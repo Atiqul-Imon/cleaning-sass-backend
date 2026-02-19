@@ -12,4 +12,3 @@ import { AuthModule } from '../auth/auth.module';
   exports: [ReportsService, ExportService],
 })
 export class ReportsModule {}
-

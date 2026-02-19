@@ -5,7 +5,12 @@ import { ReportsService } from './reports.service';
 export class ExportService {
   constructor(private reportsService: ReportsService) {}
 
-  async exportToCSV(userId: string, startDate: Date, endDate: Date, type: 'jobs' | 'invoices' | 'all'): Promise<string> {
+  async exportToCSV(
+    userId: string,
+    startDate: Date,
+    endDate: Date,
+    type: 'jobs' | 'invoices' | 'all',
+  ): Promise<string> {
     const report = await this.reportsService.getBusinessReport(userId, startDate, endDate);
 
     let csv = '';
@@ -14,7 +19,7 @@ export class ExportService {
       csv += 'Jobs Report\n';
       csv += `Period: ${startDate.toLocaleDateString('en-GB')} to ${endDate.toLocaleDateString('en-GB')}\n\n`;
       csv += 'Date,Client,Type,Status,Cleaner,Amount\n';
-      
+
       report.jobs.forEach((job) => {
         const invoice = job.invoice;
         const amount = invoice ? Number(invoice.totalAmount).toFixed(2) : 'N/A';
@@ -28,7 +33,7 @@ export class ExportService {
       csv += 'Invoices Report\n';
       csv += `Period: ${startDate.toLocaleDateString('en-GB')} to ${endDate.toLocaleDateString('en-GB')}\n\n`;
       csv += 'Invoice Number,Client,Amount,Status,Due Date,Paid Date\n';
-      
+
       report.invoices.forEach((invoice) => {
         csv += `${invoice.invoiceNumber},${invoice.client.name},£${Number(invoice.totalAmount).toFixed(2)},${invoice.status},${new Date(invoice.dueDate).toLocaleDateString('en-GB')},${invoice.paidAt ? new Date(invoice.paidAt).toLocaleDateString('en-GB') : 'N/A'}\n`;
       });
@@ -49,4 +54,3 @@ export class ExportService {
     return csv;
   }
 }
-

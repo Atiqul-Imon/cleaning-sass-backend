@@ -33,7 +33,9 @@ export class RecurringJobsService {
       this.logger.log(`Found ${completedRecurringJobs.length} completed recurring jobs to process`);
 
       for (const job of completedRecurringJobs) {
-        if (!job.frequency) continue;
+        if (!job.frequency) {
+          continue;
+        }
 
         // Check if next occurrence already exists (within next 2 weeks)
         const nextDate =
@@ -55,8 +57,8 @@ export class RecurringJobsService {
         });
 
         // Only create if next occurrence doesn't exist and the completed job was completed recently (within last 7 days)
-        const completedRecently = job.updatedAt && 
-          new Date(job.updatedAt).getTime() > Date.now() - 7 * 24 * 60 * 60 * 1000;
+        const completedRecently =
+          job.updatedAt && new Date(job.updatedAt).getTime() > Date.now() - 7 * 24 * 60 * 60 * 1000;
 
         if (!existingNextJob && completedRecently) {
           await this.prisma.job.create({
@@ -89,11 +91,3 @@ export class RecurringJobsService {
     await this.handleRecurringJobs();
   }
 }
-
-
-
-
-
-
-
-

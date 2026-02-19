@@ -14,6 +14,3 @@ import { PrismaModule } from '../../prisma/prisma.module';
   exports: [PermissionsDomainService, BusinessIdDomainService],
 })
 export class SharedDomainModule {}
-
-
-

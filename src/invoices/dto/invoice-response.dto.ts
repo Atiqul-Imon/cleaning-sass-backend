@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { InvoiceEntity, InvoiceWithRelations } from '../entities/invoice.entity';
+import { InvoiceEntity } from '../entities/invoice.entity';
 
 /**
  * Invoice Response DTO
@@ -7,34 +7,34 @@ import { InvoiceEntity, InvoiceWithRelations } from '../entities/invoice.entity'
  */
 export class InvoiceResponseDto implements InvoiceEntity {
   @ApiProperty({ description: 'Invoice ID' })
-  id: string;
+  id!: string;
 
   @ApiProperty({ description: 'Business ID' })
-  businessId: string;
+  businessId!: string;
 
   @ApiPropertyOptional({ description: 'Job ID' })
   jobId?: string | null;
 
   @ApiProperty({ description: 'Client ID' })
-  clientId: string;
+  clientId!: string;
 
   @ApiProperty({ description: 'Invoice number' })
-  invoiceNumber: string;
+  invoiceNumber!: string;
 
   @ApiProperty({ description: 'Amount (before VAT)' })
-  amount: number;
+  amount!: number;
 
   @ApiProperty({ description: 'VAT amount' })
-  vatAmount: number;
+  vatAmount!: number;
 
   @ApiProperty({ description: 'Total amount (including VAT)' })
-  totalAmount: number;
+  totalAmount!: number;
 
   @ApiProperty({ enum: ['PAID', 'UNPAID'], description: 'Invoice status' })
-  status: 'PAID' | 'UNPAID';
+  status!: 'PAID' | 'UNPAID';
 
   @ApiProperty({ description: 'Due date' })
-  dueDate: Date;
+  dueDate!: Date;
 
   @ApiPropertyOptional({ enum: ['BANK_TRANSFER', 'CARD', 'CASH'], description: 'Payment method' })
   paymentMethod?: 'BANK_TRANSFER' | 'CARD' | 'CASH' | null;
@@ -43,10 +43,10 @@ export class InvoiceResponseDto implements InvoiceEntity {
   paidAt?: Date | null;
 
   @ApiProperty({ description: 'Created at' })
-  createdAt: Date;
+  createdAt!: Date;
 
   @ApiProperty({ description: 'Updated at' })
-  updatedAt: Date;
+  updatedAt!: Date;
 }
 
 /**
@@ -81,6 +81,3 @@ export class InvoiceWithRelationsResponseDto extends InvoiceResponseDto {
     invoiceTemplate?: string | null;
   };
 }
-
-
-

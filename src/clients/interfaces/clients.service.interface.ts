@@ -31,6 +31,3 @@ export interface IClientsService {
    */
   remove(id: string, userId: string): Promise<void>;
 }
-
-
-

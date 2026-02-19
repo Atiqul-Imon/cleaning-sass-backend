@@ -6,33 +6,40 @@ import compression from 'compression';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
-  
+
   // Enable response compression (gzip)
-  app.use(compression({
-    filter: (req, res) => {
-      // Compress all responses except if explicitly disabled
-      if (req.headers['x-no-compression']) {
-        return false;
-      }
-      // Use compression for all text-based responses
-      return compression.filter(req, res);
-    },
-    level: 6, // Compression level (1-9, 6 is a good balance)
-    threshold: 1024, // Only compress responses larger than 1KB
-  }));
-  
+  app.use(
+    compression({
+      filter: (req, res) => {
+        // Compress all responses except if explicitly disabled
+        if (req.headers['x-no-compression']) {
+          return false;
+        }
+        // Use compression for all text-based responses
+        return compression.filter(req, res);
+      },
+      level: 6, // Compression level (1-9, 6 is a good balance)
+      threshold: 1024, // Only compress responses larger than 1KB
+    }),
+  );
+
   // Enable CORS for frontend
   const allowedOrigins = [
     process.env.FRONTEND_URL || 'https://fieldneat.pixelforgebd.com',
     'https://fieldneat.pixelforgebd.com',
     'http://localhost:3000', // Development
   ].filter(Boolean);
-  
+
   app.enableCors({
-    origin: (origin, callback) => {
+    origin: (
+      origin: string | undefined,
+      callback: (err: Error | null, allow?: boolean) => void,
+    ) => {
       // Allow requests with no origin (like mobile apps or curl requests)
-      if (!origin) return callback(null, true);
-      
+      if (!origin) {
+        return callback(null, true);
+      }
+
       if (allowedOrigins.includes(origin)) {
         callback(null, true);
       } else {
@@ -43,16 +50,18 @@ async function bootstrap() {
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
   });
-  
+
   // Global validation pipe
-  app.useGlobalPipes(new ValidationPipe({
-    whitelist: true,
-    forbidNonWhitelisted: true,
-    transform: true,
-    transformOptions: {
-      enableImplicitConversion: true,
-    },
-  }));
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transform: true,
+      transformOptions: {
+        enableImplicitConversion: true,
+      },
+    }),
+  );
 
   // Swagger API Documentation
   const config = new DocumentBuilder()
@@ -84,10 +93,10 @@ async function bootstrap() {
       persistAuthorization: true,
     },
   });
-  
+
   const port = process.env.PORT || 5000;
   await app.listen(port);
   console.log(`🚀 Backend server running on port ${port}`);
   console.log(`📚 Swagger API documentation available at http://localhost:${port}/api`);
 }
-bootstrap();
+void bootstrap();

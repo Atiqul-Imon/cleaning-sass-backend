@@ -103,3 +103,5 @@ echo "5. Configure Nginx (see DIGITAL_OCEAN_SETUP.md)"
 echo ""
 echo "For detailed instructions, see: DIGITAL_OCEAN_SETUP.md"
 
+
+

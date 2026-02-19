@@ -6,7 +6,7 @@ import { Injectable, Scope } from '@nestjs/common';
  */
 @Injectable({ scope: Scope.REQUEST })
 export class CacheService {
-  private cache = new Map<string, { data: any; timestamp: number }>();
+  private cache = new Map<string, { data: unknown; timestamp: number }>();
   private readonly TTL = 60000; // 1 minute TTL for request cache
 
   get<T>(key: string): T | null {
@@ -24,7 +24,7 @@ export class CacheService {
     return item.data as T;
   }
 
-  set(key: string, data: any): void {
+  set<T>(key: string, data: T): void {
     this.cache.set(key, {
       data,
       timestamp: Date.now(),
@@ -54,10 +54,3 @@ export class CacheService {
     this.cache.clear();
   }
 }
-
-
-
-
-
-
-

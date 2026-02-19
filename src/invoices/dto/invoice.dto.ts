@@ -13,19 +13,22 @@ export class CreateInvoiceDto {
   })
   @IsString()
   @IsNotEmpty({ message: 'Job ID is required' })
-  jobId: string;
+  jobId!: string;
 
   @ApiProperty({
     description: 'Invoice amount (before VAT)',
-    example: 100.00,
+    example: 100.0,
     minimum: 0.01,
     maximum: 100000,
   })
-  @IsNumber({ maxDecimalPlaces: 2 }, { message: 'Amount must be a number with max 2 decimal places' })
+  @IsNumber(
+    { maxDecimalPlaces: 2 },
+    { message: 'Amount must be a number with max 2 decimal places' },
+  )
   @Min(0.01, { message: 'Amount must be greater than 0' })
   @Max(100000, { message: 'Amount seems unusually high. Please verify.' })
   @Type(() => Number)
-  amount: number;
+  amount!: number;
 
   @ApiPropertyOptional({
     description: 'Invoice template',
@@ -33,7 +36,8 @@ export class CreateInvoiceDto {
     example: 'modern',
   })
   @IsEnum(['classic', 'modern', 'minimal', 'professional', 'elegant', 'bold'], {
-    message: 'Invoice template must be one of: classic, modern, minimal, professional, elegant, bold',
+    message:
+      'Invoice template must be one of: classic, modern, minimal, professional, elegant, bold',
   })
   @IsOptional()
   invoiceTemplate?: string;
@@ -64,4 +68,3 @@ export class UpdateInvoiceDto {
   @IsOptional()
   paymentMethod?: 'BANK_TRANSFER' | 'CARD' | 'CASH';
 }
-

@@ -113,10 +113,7 @@ export class ClientDomainService {
   private isValidPhone(phone: string): boolean {
     // Basic phone validation - allows various formats
     // Remove common separators and check if it's mostly digits
-    const cleaned = phone.replace(/[\s\-\(\)\+]/g, '');
+    const cleaned = phone.replace(/[\s\-()+]/g, '');
     return /^\d{7,15}$/.test(cleaned);
   }
 }
-
-
-

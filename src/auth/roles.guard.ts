@@ -1,19 +1,17 @@
-import {
-  Injectable,
-  CanActivate,
-  ExecutionContext,
-  ForbiddenException,
-} from '@nestjs/common';
+import { Injectable, CanActivate, ExecutionContext, ForbiddenException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { PrismaService } from '../prisma/prisma.service';
 
 export const Roles = (...roles: string[]) => {
-  return (target: any, key?: any, descriptor?: any) => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return (target: any, _key?: string | symbol, descriptor?: PropertyDescriptor): any => {
     if (descriptor) {
       Reflect.defineMetadata('roles', roles, descriptor.value);
       return descriptor;
     }
-    Reflect.defineMetadata('roles', roles, target);
+    if (target && typeof target === 'object') {
+      Reflect.defineMetadata('roles', roles, target);
+    }
     return target;
   };
 };
@@ -26,10 +24,7 @@ export class RolesGuard implements CanActivate {
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    const requiredRoles = this.reflector.get<string[]>(
-      'roles',
-      context.getHandler(),
-    );
+    const requiredRoles = this.reflector.get<string[]>('roles', context.getHandler());
 
     if (!requiredRoles) {
       return true; // No roles required, allow access
@@ -55,9 +50,7 @@ export class RolesGuard implements CanActivate {
     const userRole = dbUser.role;
 
     if (!requiredRoles.includes(userRole)) {
-      throw new ForbiddenException(
-        `Access denied. Required role: ${requiredRoles.join(' or ')}`,
-      );
+      throw new ForbiddenException(`Access denied. Required role: ${requiredRoles.join(' or ')}`);
     }
 
     // Attach role to request for use in controllers
@@ -66,14 +59,3 @@ export class RolesGuard implements CanActivate {
     return true;
   }
 }
-
-
-
-
-
-
-
-
-
-
-

@@ -36,7 +36,10 @@ export class InvoiceDomainService {
   /**
    * Validate invoice update data
    */
-  validateUpdateInvoice(data: { status?: 'PAID' | 'UNPAID'; paymentMethod?: 'BANK_TRANSFER' | 'CARD' | 'CASH' }): { valid: boolean; errors?: string[] } {
+  validateUpdateInvoice(data: {
+    status?: 'PAID' | 'UNPAID';
+    paymentMethod?: 'BANK_TRANSFER' | 'CARD' | 'CASH';
+  }): { valid: boolean; errors?: string[] } {
     const errors: string[] = [];
 
     // Validate payment method if marking as paid
@@ -54,7 +57,9 @@ export class InvoiceDomainService {
    * Calculate VAT amount
    */
   calculateVAT(amount: number, vatEnabled: boolean): number {
-    if (!vatEnabled) return 0;
+    if (!vatEnabled) {
+      return 0;
+    }
     // UK VAT rate is 20%
     return Math.round(amount * 0.2 * 100) / 100;
   }
@@ -85,7 +90,9 @@ export class InvoiceDomainService {
    * Check if invoice is overdue
    */
   isOverdue(dueDate: Date, status: 'PAID' | 'UNPAID'): boolean {
-    if (status === 'PAID') return false;
+    if (status === 'PAID') {
+      return false;
+    }
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const due = new Date(dueDate);
@@ -106,6 +113,3 @@ export class InvoiceDomainService {
     return diffDays;
   }
 }
-
-
-

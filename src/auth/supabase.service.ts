@@ -4,9 +4,8 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
 @Injectable()
 export class SupabaseService {
-  private supabase: SupabaseClient;
-  private supabaseAdmin: SupabaseClient;
-  private supabaseAnon: SupabaseClient;
+  private supabaseAdmin: SupabaseClient | null = null;
+  private supabaseAnon: SupabaseClient | null = null;
 
   constructor(private configService: ConfigService) {
     const supabaseUrl = this.configService.get<string>('SUPABASE_URL');
@@ -35,23 +34,31 @@ export class SupabaseService {
   }
 
   getAdminClient(): SupabaseClient {
+    if (!this.supabaseAdmin) {
+      throw new Error('Supabase admin client not initialized');
+    }
     return this.supabaseAdmin;
   }
 
   getAnonClient(): SupabaseClient {
+    if (!this.supabaseAnon) {
+      throw new Error('Supabase anon client not initialized');
+    }
     return this.supabaseAnon;
   }
 
   async verifyToken(token: string) {
     try {
+      if (!this.supabaseAdmin) {
+        return null;
+      }
       const { data, error } = await this.supabaseAdmin.auth.getUser(token);
       if (error) {
         return null;
       }
       return data.user;
-    } catch (error) {
+    } catch {
       return null;
     }
   }
 }
-

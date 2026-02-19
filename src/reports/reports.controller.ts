@@ -1,17 +1,10 @@
-import {
-  Controller,
-  Get,
-  Param,
-  Query,
-  UseGuards,
-  Res,
-} from '@nestjs/common';
+import { Controller, Get, Param, Query, UseGuards, Res } from '@nestjs/common';
 import type { Response } from 'express';
+import type { AuthenticatedUser } from '../shared/types/user.types';
 import { ReportsService } from './reports.service';
 import { ExportService } from './export.service';
 import { AuthGuard } from '../auth/auth.guard';
-import { RolesGuard } from '../auth/roles.guard';
-import { Roles } from '../auth/roles.guard';
+import { RolesGuard, Roles } from '../auth/roles.guard';
 import { CurrentUser } from '../auth/auth.decorator';
 
 @Controller('reports')
@@ -25,7 +18,7 @@ export class ReportsController {
   @Get('business')
   @Roles('OWNER')
   async getBusinessReport(
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
     @Query('startDate') startDate: string,
     @Query('endDate') endDate: string,
   ) {
@@ -37,7 +30,7 @@ export class ReportsController {
   @Get('client/:clientId')
   @Roles('OWNER')
   async getClientReport(
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
     @Param('clientId') clientId: string,
   ) {
     return this.reportsService.getClientReport(user.id, clientId);
@@ -46,7 +39,7 @@ export class ReportsController {
   @Get('export')
   @Roles('OWNER')
   async exportReport(
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
     @Query('startDate') startDate: string,
     @Query('endDate') endDate: string,
     @Query('type') type: 'jobs' | 'invoices' | 'all' = 'all',
@@ -57,8 +50,10 @@ export class ReportsController {
     const csv = await this.exportService.exportToCSV(user.id, start, end, type);
 
     res.setHeader('Content-Type', 'text/csv');
-    res.setHeader('Content-Disposition', `attachment; filename="report-${new Date().toISOString().split('T')[0]}.csv"`);
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="report-${new Date().toISOString().split('T')[0]}.csv"`,
+    );
     res.send(csv);
   }
 }
-

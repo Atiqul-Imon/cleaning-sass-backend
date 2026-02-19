@@ -49,6 +49,7 @@ PORT=3000
      - service_role key → `SUPABASE_SERVICE_ROLE_KEY`
 
 2. **Test Database Connection:**
+
    ```bash
    cd backend
    npx prisma db pull
@@ -64,14 +65,3 @@ PORT=3000
 - The connection string uses **pooler mode** (good for serverless/server environments)
 - Your password is: `UbSFzM5UdQtOnCpf` (keep this secure!)
 - Never commit the `.env` file to git
-
-
-
-
-
-
-
-
-
-
-

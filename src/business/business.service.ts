@@ -36,11 +36,17 @@ export class BusinessService {
     });
   }
 
-  async findByUserId(userId: string) {
+  async findByUserId(userId: string): Promise<
+    Prisma.BusinessGetPayload<{
+      include: { user: { select: { id: true; email: true; role: true } } };
+    }>
+  > {
     // Check cache first (request-scoped)
     const cacheKey = `business:userId:${userId}`;
     if (this.cacheService?.has(cacheKey)) {
-      const cached = this.cacheService.get(cacheKey) as Awaited<ReturnType<typeof this.findByUserId>>;
+      const cached = this.cacheService.get(cacheKey) as Awaited<
+        ReturnType<typeof this.findByUserId>
+      >;
       if (cached) {
         return cached;
       }
@@ -168,5 +174,3 @@ export class BusinessService {
     }));
   }
 }
-
-

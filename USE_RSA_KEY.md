@@ -50,3 +50,5 @@ ssh-copy-id -i ~/.ssh/id_ed25519.pub root@46.101.37.78
 
 But using RSA is simpler since it's already set up.
 
+
+

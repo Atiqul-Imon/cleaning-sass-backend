@@ -11,7 +11,7 @@ interface EmailOptions {
 @Injectable()
 export class EmailService {
   private readonly logger = new Logger(EmailService.name);
-  private transporter: nodemailer.Transporter;
+  private transporter: nodemailer.Transporter | null = null;
 
   constructor() {
     // Initialize email transporter
@@ -32,25 +32,27 @@ export class EmailService {
         });
       } else if (emailService === 'sendgrid') {
         // SendGrid
-        this.transporter = nodemailer.createTransport({
-          host: 'smtp.sendgrid.net',
-          port: 587,
-          auth: {
-            user: 'apikey',
-            pass: emailApiKey,
-          },
-        });
+        (this as unknown as { transporter: nodemailer.Transporter }).transporter =
+          nodemailer.createTransport({
+            host: 'smtp.sendgrid.net',
+            port: 587,
+            auth: {
+              user: 'apikey',
+              pass: emailApiKey,
+            },
+          });
       } else {
         // Generic SMTP
-        this.transporter = nodemailer.createTransport({
-          host: process.env.SMTP_HOST || 'smtp.gmail.com',
-          port: parseInt(process.env.SMTP_PORT || '587'),
-          secure: false,
-          auth: {
-            user: process.env.EMAIL_USER,
-            pass: emailApiKey,
-          },
-        });
+        (this as unknown as { transporter: nodemailer.Transporter }).transporter =
+          nodemailer.createTransport({
+            host: process.env.SMTP_HOST || 'smtp.gmail.com',
+            port: parseInt(process.env.SMTP_PORT || '587'),
+            secure: false,
+            auth: {
+              user: process.env.EMAIL_USER,
+              pass: emailApiKey,
+            },
+          });
       }
     } else {
       // Development mode - use Ethereal Email for testing
@@ -83,11 +85,3 @@ export class EmailService {
     }
   }
 }
-
-
-
-
-
-
-
-

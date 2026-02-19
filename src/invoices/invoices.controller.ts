@@ -1,19 +1,10 @@
-import {
-  Controller,
-  Get,
-  Post,
-  Put,
-  Body,
-  Param,
-  UseGuards,
-  Res,
-} from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, UseGuards, Res } from '@nestjs/common';
 import type { Response } from 'express';
+import type { AuthenticatedUser } from '../shared/types/user.types';
 import { InvoicesService } from './invoices.service';
 import { PdfService } from './pdf.service';
 import { AuthGuard } from '../auth/auth.guard';
-import { RolesGuard } from '../auth/roles.guard';
-import { Roles } from '../auth/roles.guard';
+import { RolesGuard, Roles } from '../auth/roles.guard';
 import { CurrentUser } from '../auth/auth.decorator';
 
 @Controller('invoices')
@@ -27,7 +18,7 @@ export class InvoicesController {
   @Post('from-job/:jobId')
   @Roles('OWNER') // Only owners can create invoices
   async createFromJob(
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
     @Param('jobId') jobId: string,
     @Body('amount') amount: number,
   ) {
@@ -36,20 +27,20 @@ export class InvoicesController {
 
   @Get()
   @Roles('OWNER') // Only owners can see invoices
-  async findAll(@CurrentUser() user: any) {
+  async findAll(@CurrentUser() user: AuthenticatedUser) {
     return this.invoicesService.findAll(user.id);
   }
 
   @Get(':id')
   @Roles('OWNER') // Only owners can see invoice details
-  async findOne(@CurrentUser() user: any, @Param('id') id: string) {
+  async findOne(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
     return this.invoicesService.findOne(user.id, id);
   }
 
   @Get(':id/pdf')
   @Roles('OWNER') // Only owners can download invoice PDF
   async downloadPDF(
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
     @Param('id') id: string,
     @Res() res: Response,
   ) {
@@ -64,15 +55,9 @@ export class InvoicesController {
     res.send(pdfBuffer);
   }
 
-
-
   @Get(':id/whatsapp-link')
   @Roles('OWNER') // Only owners can send invoices via WhatsApp
-  async getWhatsAppLink(
-    @CurrentUser() user: any,
-    @Param('id') id: string,
-  ) {
+  async getWhatsAppLink(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
     return this.invoicesService.getWhatsAppLink(user.id, id);
   }
 }
-

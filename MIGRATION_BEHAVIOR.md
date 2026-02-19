@@ -24,15 +24,18 @@ The command `npx prisma migrate deploy` is **idempotent**, meaning:
 ## Example Scenarios
 
 ### Scenario 1: No New Migrations
+
 ```bash
 $ npx prisma migrate deploy
 Environment variables loaded from .env
 Prisma schema loaded from prisma/schema.prisma
 No pending migrations to apply.
 ```
+
 ✅ **Result**: No changes, deployment continues
 
 ### Scenario 2: New Migration Exists
+
 ```bash
 $ npx prisma migrate deploy
 Environment variables loaded from .env
@@ -40,15 +43,18 @@ Prisma schema loaded from prisma/schema.prisma
 Applying migration `20240218_add_new_table`
 Migration applied successfully.
 ```
+
 ✅ **Result**: New migration applied, deployment continues
 
 ### Scenario 3: Migration Already Applied
+
 ```bash
 $ npx prisma migrate deploy
 Environment variables loaded from .env
 Prisma schema loaded from prisma/schema.prisma
 Migration `20240218_add_new_table` already applied, skipping.
 ```
+
 ✅ **Result**: Migration skipped, deployment continues
 
 ## Why This Is Good Practice
@@ -81,6 +87,7 @@ fi
 ```
 
 **However, this is NOT recommended** because:
+
 - Adds complexity
 - `migrate deploy` is already fast when there are no changes
 - Risk of missing migrations if check fails
@@ -103,6 +110,7 @@ npx prisma migrate deploy
 ```
 
 This will:
+
 - ✅ Apply new migrations automatically
 - ✅ Skip already-applied migrations
 - ✅ Fail safely if there's an issue (deployment stops)
@@ -110,7 +118,6 @@ This will:
 
 ## Summary
 
-**Yes, migrations run on every push, and that's exactly what you want!** 
+**Yes, migrations run on every push, and that's exactly what you want!**
 
 The `prisma migrate deploy` command is designed to be safe to run repeatedly. It's the standard practice for production deployments and ensures your database schema always matches your code.
-

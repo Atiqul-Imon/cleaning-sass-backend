@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { JobEntity, JobWithRelations } from '../entities/job.entity';
+import { JobEntity } from '../entities/job.entity';
 
 /**
  * Job Response DTO
@@ -7,34 +7,37 @@ import { JobEntity, JobWithRelations } from '../entities/job.entity';
  */
 export class JobResponseDto implements JobEntity {
   @ApiProperty({ description: 'Job ID' })
-  id: string;
+  id!: string;
 
   @ApiProperty({ description: 'Business ID' })
-  businessId: string;
+  businessId!: string;
 
   @ApiProperty({ description: 'Client ID' })
-  clientId: string;
+  clientId!: string;
 
   @ApiPropertyOptional({ description: 'Cleaner ID' })
   cleanerId?: string | null;
 
   @ApiProperty({ enum: ['ONE_OFF', 'RECURRING'], description: 'Job type' })
-  type: 'ONE_OFF' | 'RECURRING';
+  type!: 'ONE_OFF' | 'RECURRING';
 
-  @ApiPropertyOptional({ enum: ['WEEKLY', 'BI_WEEKLY'], description: 'Frequency for recurring jobs' })
+  @ApiPropertyOptional({
+    enum: ['WEEKLY', 'BI_WEEKLY'],
+    description: 'Frequency for recurring jobs',
+  })
   frequency?: 'WEEKLY' | 'BI_WEEKLY' | null;
 
   @ApiProperty({ description: 'Scheduled date' })
-  scheduledDate: Date;
+  scheduledDate!: Date;
 
   @ApiPropertyOptional({ description: 'Scheduled time' })
   scheduledTime?: string | null;
 
   @ApiProperty({ enum: ['SCHEDULED', 'IN_PROGRESS', 'COMPLETED'], description: 'Job status' })
-  status: 'SCHEDULED' | 'IN_PROGRESS' | 'COMPLETED';
+  status!: 'SCHEDULED' | 'IN_PROGRESS' | 'COMPLETED';
 
   @ApiProperty({ description: 'Reminder enabled' })
-  reminderEnabled: boolean;
+  reminderEnabled!: boolean;
 
   @ApiPropertyOptional({ description: 'Reminder time' })
   reminderTime?: string | null;
@@ -43,10 +46,10 @@ export class JobResponseDto implements JobEntity {
   reminderSent?: boolean | null;
 
   @ApiProperty({ description: 'Created at' })
-  createdAt: Date;
+  createdAt!: Date;
 
   @ApiProperty({ description: 'Updated at' })
-  updatedAt: Date;
+  updatedAt!: Date;
 }
 
 /**
@@ -95,6 +98,3 @@ export class JobWithRelationsResponseDto extends JobResponseDto {
     invoiceNumber: string;
   } | null;
 }
-
-
-
