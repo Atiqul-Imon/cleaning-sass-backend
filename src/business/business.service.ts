@@ -88,7 +88,11 @@ export class BusinessService {
       // Check cache first (request-scoped)
       const cacheKey = `business:userId:${userId}`;
       if (this.cacheService?.has(cacheKey)) {
-        const cached = this.cacheService.get(cacheKey);
+        const cached = this.cacheService.get<
+          Prisma.BusinessGetPayload<{
+            include: { user: { select: { id: true; email: true; role: true } } };
+          }>
+        >(cacheKey);
         if (cached) {
           return cached;
         }
