@@ -66,13 +66,13 @@ export class DashboardService {
             totalClients,
             totalInvoices,
           ] = await Promise.all([
-            // Get upcoming jobs (next 7 days)
+            // Get upcoming jobs (next 7 days, including today)
             this.prisma.job
               .findMany({
                 where: {
                   businessId: business.id,
                   scheduledDate: {
-                    gte: new Date(today.getTime() + 24 * 60 * 60 * 1000), // Tomorrow
+                    gte: today, // Include today
                     lte: nextWeek,
                   },
                   status: {
@@ -313,7 +313,7 @@ export class DashboardService {
               businessId,
               cleanerId: userId,
               scheduledDate: {
-                gte: new Date(today.getTime() + 24 * 60 * 60 * 1000), // Tomorrow
+                gte: today, // Include today
                 lte: nextWeek,
               },
               status: {

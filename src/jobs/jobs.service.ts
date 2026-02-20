@@ -260,6 +260,7 @@ export class JobsService implements IJobsService {
       // Cleaners only see jobs assigned to them
       if (userRole === 'CLEANER') {
         whereClause.cleanerId = userId;
+        console.log('[JOBS FINDALL] Filtering jobs for cleaner:', userId);
       }
 
       // If pagination is explicitly requested (query params provided), return paginated response
