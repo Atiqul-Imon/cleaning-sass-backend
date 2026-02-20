@@ -129,25 +129,43 @@ export class JobsService implements IJobsService {
         };
       }
 
-      // Return all results (backward compatibility)
-      return this.jobsRepository.findAllWithRelations(whereClause);
+      // Return all results (backward compatibility) - always return as array
+      const allJobs = await this.jobsRepository.findAllWithRelations(whereClause);
+      return allJobs;
     } catch (error) {
       // Log error for debugging
       console.error('Error in findAll jobs:', error);
+      console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace');
+      console.error('Error details:', {
+        userId,
+        userRole,
+        pagination,
+        errorMessage: error instanceof Error ? error.message : String(error),
+      });
+
       // If business doesn't exist yet or any other error, return empty array
-      return pagination
-        ? {
-            data: [],
-            pagination: {
-              page: 1,
-              limit: 20,
-              total: 0,
-              totalPages: 0,
-              hasNext: false,
-              hasPrev: false,
-            },
-          }
-        : [];
+      // Check if pagination was requested to return correct format
+      const hasPaginationParams =
+        pagination &&
+        ((pagination.page !== undefined && pagination.page !== null) ||
+          (pagination.limit !== undefined && pagination.limit !== null));
+
+      if (hasPaginationParams) {
+        return {
+          data: [],
+          pagination: {
+            page: pagination.page || 1,
+            limit: pagination.limit || 20,
+            total: 0,
+            totalPages: 0,
+            hasNext: false,
+            hasPrev: false,
+          },
+        };
+      }
+
+      // Return empty array for backward compatibility
+      return [];
     }
   }
 
