@@ -63,3 +63,4 @@ echo "3. Start nginx: sudo systemctl start nginx"
 echo "4. Enable nginx: sudo systemctl enable nginx"
 
 
+

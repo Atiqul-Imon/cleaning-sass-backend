@@ -72,7 +72,25 @@ export class JobsService implements IJobsService {
     pagination?: { page?: number; limit?: number },
   ): Promise<{ data: JobWithRelations[]; pagination: any } | JobWithRelations[]> {
     try {
-      const businessId = await this.businessIdService.getBusinessId(userId, userRole as any);
+      // Use getBusinessIdOrNull to gracefully handle missing business
+      const businessId = await this.businessIdService.getBusinessIdOrNull(userId, userRole as any);
+
+      // If no business found, return empty result
+      if (!businessId) {
+        return pagination
+          ? {
+              data: [],
+              pagination: {
+                page: 1,
+                limit: 20,
+                total: 0,
+                totalPages: 0,
+                hasNext: false,
+                hasPrev: false,
+              },
+            }
+          : [];
+      }
 
       const whereClause: Prisma.JobWhereInput = { businessId };
 
@@ -81,8 +99,14 @@ export class JobsService implements IJobsService {
         whereClause.cleanerId = userId;
       }
 
-      // If pagination is requested, return paginated response
-      if (pagination?.page || pagination?.limit) {
+      // If pagination is explicitly requested (query params provided), return paginated response
+      // Check if pagination object exists and has explicit values (not just defaults)
+      const hasPaginationParams =
+        pagination &&
+        ((pagination.page !== undefined && pagination.page !== null) ||
+          (pagination.limit !== undefined && pagination.limit !== null));
+
+      if (hasPaginationParams) {
         const page = pagination.page || 1;
         const limit = Math.min(pagination.limit || 20, 100); // Max 100 items per page
         const skip = (page - 1) * limit;
@@ -107,8 +131,10 @@ export class JobsService implements IJobsService {
 
       // Return all results (backward compatibility)
       return this.jobsRepository.findAllWithRelations(whereClause);
-    } catch {
-      // If business doesn't exist yet, return empty array
+    } catch (error) {
+      // Log error for debugging
+      console.error('Error in findAll jobs:', error);
+      // If business doesn't exist yet or any other error, return empty array
       return pagination
         ? {
             data: [],
