@@ -100,51 +100,121 @@ export class JobsRepository implements IRepository<
     where?: Prisma.JobWhereInput,
     pagination?: { skip?: number; take?: number },
   ): Promise<JobWithRelations[]> {
-    return this.prisma.job.findMany({
-      where,
-      select: {
-        id: true,
-        type: true,
-        frequency: true,
-        scheduledDate: true,
-        scheduledTime: true,
-        status: true,
-        reminderEnabled: true,
-        reminderTime: true,
-        reminderSent: true,
-        createdAt: true,
-        updatedAt: true,
-        cleanerId: true,
-        client: {
-          select: {
-            id: true,
-            name: true,
-            phone: true,
-            address: true,
+    try {
+      const queryOptions: any = {
+        where,
+        select: {
+          id: true,
+          type: true,
+          frequency: true,
+          scheduledDate: true,
+          scheduledTime: true,
+          status: true,
+          reminderEnabled: true,
+          reminderTime: true,
+          reminderSent: true,
+          createdAt: true,
+          updatedAt: true,
+          cleanerId: true,
+          client: {
+            select: {
+              id: true,
+              name: true,
+              phone: true,
+              address: true,
+            },
+          },
+          cleaner: {
+            select: {
+              id: true,
+              email: true,
+            },
+          },
+          business: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+          invoice: {
+            select: {
+              id: true,
+              invoiceNumber: true,
+            },
           },
         },
-        cleaner: {
+        orderBy: { scheduledDate: 'desc' },
+      };
+
+      if (pagination) {
+        if (pagination.skip !== undefined) {
+          queryOptions.skip = pagination.skip;
+        }
+        if (pagination.take !== undefined) {
+          queryOptions.take = pagination.take;
+        }
+      }
+
+      return (await this.prisma.job.findMany(queryOptions)) as JobWithRelations[];
+    } catch (error) {
+      // If reminder fields don't exist, try without them
+      if (error instanceof Error && error.message.includes('reminder')) {
+        console.warn('[JOBS REPOSITORY] Reminder fields not found, retrying without them');
+        const queryOptions: any = {
+          where,
           select: {
             id: true,
-            email: true,
+            type: true,
+            frequency: true,
+            scheduledDate: true,
+            scheduledTime: true,
+            status: true,
+            createdAt: true,
+            updatedAt: true,
+            cleanerId: true,
+            client: {
+              select: {
+                id: true,
+                name: true,
+                phone: true,
+                address: true,
+              },
+            },
+            cleaner: {
+              select: {
+                id: true,
+                email: true,
+              },
+            },
+            business: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+            invoice: {
+              select: {
+                id: true,
+                invoiceNumber: true,
+              },
+            },
           },
-        },
-        business: {
-          select: {
-            id: true,
-            name: true,
-          },
-        },
-        invoice: {
-          select: {
-            id: true,
-            invoiceNumber: true,
-          },
-        },
-      },
-      orderBy: { scheduledDate: 'desc' },
-      ...(pagination && { skip: pagination.skip, take: pagination.take }),
-    }) as Promise<JobWithRelations[]>;
+          orderBy: { scheduledDate: 'desc' },
+        };
+
+        if (pagination) {
+          if (pagination.skip !== undefined) {
+            queryOptions.skip = pagination.skip;
+          }
+          if (pagination.take !== undefined) {
+            queryOptions.take = pagination.take;
+          }
+        }
+
+        return (await this.prisma.job.findMany(queryOptions)) as JobWithRelations[];
+      }
+      throw error;
+    }
   }
 
   async update(id: string, data: Prisma.JobUpdateInput): Promise<JobEntity> {

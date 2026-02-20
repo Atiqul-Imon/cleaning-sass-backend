@@ -38,8 +38,28 @@ export class JobsController {
   })
   @ApiResponse({ status: 400, description: 'Bad request - validation failed' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Business or client not found' })
   async create(@CurrentUser() user: AuthenticatedUser, @Body() data: CreateJobDto) {
-    return this.jobsService.create(user.id, data);
+    try {
+      console.log('[JOBS CONTROLLER] POST /jobs - Request received');
+      console.log('[JOBS CONTROLLER] User:', { id: user.id, email: user.email });
+      console.log('[JOBS CONTROLLER] Request body:', JSON.stringify(data, null, 2));
+
+      const job = await this.jobsService.create(user.id, data);
+
+      console.log('[JOBS CONTROLLER] ✅ Job created successfully:', job.id);
+      return job;
+    } catch (error) {
+      console.error('[JOBS CONTROLLER] ❌ Error in create endpoint:', error);
+      console.error('[JOBS CONTROLLER] Error details:', {
+        userId: user.id,
+        errorType: error instanceof Error ? error.constructor.name : typeof error,
+        errorMessage: error instanceof Error ? error.message : String(error),
+      });
+
+      // Re-throw to let NestJS handle the HTTP response
+      throw error;
+    }
   }
 
   @Get()
@@ -50,9 +70,33 @@ export class JobsController {
     @Req() req: Request,
     @Query() pagination: PaginationDto,
   ) {
-    // Role is set by AuthGuard on request.role
-    const userRole = (req as Request & { role?: 'OWNER' | 'CLEANER' | 'ADMIN' }).role || 'OWNER';
-    return this.jobsService.findAll(user.id, userRole, pagination);
+    try {
+      console.log('[JOBS CONTROLLER] GET /jobs - Request received');
+      console.log('[JOBS CONTROLLER] User:', { id: user.id, email: user.email });
+      console.log('[JOBS CONTROLLER] Pagination:', pagination);
+
+      // Role is set by AuthGuard on request.role
+      const userRole = (req as Request & { role?: 'OWNER' | 'CLEANER' | 'ADMIN' }).role || 'OWNER';
+      const result = await this.jobsService.findAll(user.id, userRole, pagination);
+
+      console.log('[JOBS CONTROLLER] ✅ Jobs fetched successfully');
+      if (Array.isArray(result)) {
+        console.log('[JOBS CONTROLLER] Result: Array with', result.length, 'jobs');
+      } else {
+        console.log('[JOBS CONTROLLER] Result: Paginated with', result.data?.length || 0, 'jobs');
+      }
+
+      return result;
+    } catch (error) {
+      console.error('[JOBS CONTROLLER] ❌ Error in findAll endpoint:', error);
+      console.error('[JOBS CONTROLLER] Error details:', {
+        userId: user.id,
+        errorType: error instanceof Error ? error.constructor.name : typeof error,
+        errorMessage: error instanceof Error ? error.message : String(error),
+        errorStack: error instanceof Error ? error.stack : 'No stack',
+      });
+      throw error;
+    }
   }
 
   @Get('today')
