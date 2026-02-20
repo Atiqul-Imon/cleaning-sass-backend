@@ -70,3 +70,4 @@ echo "7. Start the application with PM2"
 
 
 
+

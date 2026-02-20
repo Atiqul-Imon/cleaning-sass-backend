@@ -64,3 +64,4 @@ echo "4. Enable nginx: sudo systemctl enable nginx"
 
 
 
+

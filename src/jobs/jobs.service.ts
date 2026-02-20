@@ -574,10 +574,26 @@ export class JobsService implements IJobsService {
       updateData.reminderSent = false;
     }
 
-    return this.prisma.job.update({
+    const updatedJob = await this.prisma.job.update({
       where: { id: jobId },
       data: updateData,
+      include: {
+        client: { select: { id: true, name: true } },
+        cleaner: { select: { id: true, email: true } },
+      },
     });
+
+    // Log job completion by owner
+    if (data.status === JobStatus.COMPLETED) {
+      console.log('[JOB COMPLETION] ✅ Job completed by owner');
+      console.log('[JOB COMPLETION] Job ID:', jobId);
+      console.log('[JOB COMPLETION] Client:', updatedJob.client.name);
+      console.log('[JOB COMPLETION] Completed by:', updatedJob.cleaner?.email || 'Owner (self)');
+      console.log('[JOB COMPLETION] Scheduled Date:', updatedJob.scheduledDate);
+      console.log('[JOB COMPLETION] Next steps: Owner can now create an invoice for this job');
+    }
+
+    return updatedJob;
   }
 
   async remove(userId: string, jobId: string, userRole?: string): Promise<JobEntity> {
