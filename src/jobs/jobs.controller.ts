@@ -9,9 +9,10 @@ import {
   UseGuards,
   Req,
   Query,
+  Res,
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger';
-import type { Request } from 'express';
+import type { Request, Response } from 'express';
 import type { AuthenticatedUser } from '../shared/types/user.types';
 import { JobsService } from './jobs.service';
 import { AuthGuard } from '../auth/auth.guard';
@@ -20,6 +21,9 @@ import { CurrentUser } from '../auth/auth.decorator';
 import { CreateJobDto, UpdateJobDto } from './dto/job.dto';
 import { JobResponseDto } from './dto/job-response.dto';
 import { PaginationDto } from '../shared/dto/pagination.dto';
+import archiver from 'archiver';
+import * as https from 'https';
+import * as http from 'http';
 
 @ApiTags('jobs')
 @ApiBearerAuth('JWT-auth')
@@ -182,5 +186,63 @@ export class JobsController {
   ) {
     const userRole = (req as Request & { role?: 'OWNER' | 'CLEANER' | 'ADMIN' }).role || 'OWNER';
     return this.jobsService.getWhatsAppLinkForCompletion(user.id, id, userRole);
+  }
+
+  @Get(':id/photos/download')
+  @Roles('OWNER', 'CLEANER')
+  async downloadPhotos(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+    @Req() req: Request,
+    @Res() res: Response,
+  ): Promise<void> {
+    const userRole = (req as Request & { role?: 'OWNER' | 'CLEANER' | 'ADMIN' }).role || 'OWNER';
+    const photos = await this.jobsService.getPhotosForDownload(user.id, id, userRole);
+
+    if (!photos || photos.length === 0) {
+      res.status(404).json({ message: 'No photos found for this job' });
+      return;
+    }
+
+    // Create ZIP archive
+    const archive = archiver('zip', {
+      zlib: { level: 9 }, // Maximum compression
+    });
+
+    // Set response headers
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Content-Disposition', `attachment; filename="job-${id}-photos.zip"`);
+
+    // Pipe archive to response
+    archive.pipe(res);
+
+    // Download and add each photo to the archive
+    const downloadPromises = photos.map(async (photo, index) => {
+      return new Promise<void>((resolve, reject) => {
+        const url = new URL(photo.imageUrl);
+        const protocol = url.protocol === 'https:' ? https : http;
+
+        protocol
+          .get(photo.imageUrl, (response) => {
+            if (response.statusCode !== 200) {
+              reject(new Error(`Failed to download image: ${response.statusCode}`));
+              return;
+            }
+
+            const fileName = `${photo.photoType.toLowerCase()}-${index + 1}.jpg`;
+            archive.append(response, { name: fileName });
+            resolve();
+          })
+          .on('error', (error) => {
+            console.error(`Error downloading photo ${photo.id}:`, error);
+            // Continue even if one photo fails
+            resolve();
+          });
+      });
+    });
+
+    // Wait for all downloads to start, then finalize archive
+    await Promise.all(downloadPromises);
+    await archive.finalize();
   }
 }

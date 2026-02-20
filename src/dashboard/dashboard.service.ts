@@ -54,6 +54,8 @@ export class DashboardService {
           today.setHours(0, 0, 0, 0);
           const nextWeek = new Date(today);
           nextWeek.setDate(nextWeek.getDate() + 7);
+          const nextMonth = new Date(today);
+          nextMonth.setDate(nextMonth.getDate() + 30); // 30 days for upcoming jobs
 
           // Get all data in parallel with error handling
           const [
@@ -66,45 +68,66 @@ export class DashboardService {
             totalClients,
             totalInvoices,
           ] = await Promise.all([
-            // Get upcoming jobs (next 7 days, including today)
-            this.prisma.job
-              .findMany({
-                where: {
-                  businessId: business.id,
-                  scheduledDate: {
-                    gte: today, // Include today
-                    lte: nextWeek,
-                  },
-                  status: {
-                    in: ['SCHEDULED', 'IN_PROGRESS'],
-                  },
-                },
-                select: {
-                  id: true,
-                  type: true,
-                  scheduledDate: true,
-                  scheduledTime: true,
-                  status: true,
-                  client: {
-                    select: {
-                      id: true,
-                      name: true,
-                      phone: true,
+            // Get upcoming jobs (next 30 days, including today) - expanded from 7 to 30 days
+            (async () => {
+              try {
+                console.log('[DASHBOARD] Fetching upcoming jobs...');
+                console.log('[DASHBOARD] Business ID:', business.id);
+                console.log('[DASHBOARD] Date range:', {
+                  from: today.toISOString(),
+                  to: nextMonth.toISOString(),
+                });
+                const jobs = await this.prisma.job.findMany({
+                  where: {
+                    businessId: business.id,
+                    scheduledDate: {
+                      gte: today, // Include today
+                      lte: nextMonth, // Next 30 days
+                    },
+                    status: {
+                      in: ['SCHEDULED', 'IN_PROGRESS'],
                     },
                   },
-                  cleaner: {
-                    select: {
-                      id: true,
-                      email: true,
+                  select: {
+                    id: true,
+                    type: true,
+                    scheduledDate: true,
+                    scheduledTime: true,
+                    status: true,
+                    client: {
+                      select: {
+                        id: true,
+                        name: true,
+                        phone: true,
+                      },
+                    },
+                    cleaner: {
+                      select: {
+                        id: true,
+                        email: true,
+                      },
                     },
                   },
-                },
-                orderBy: {
-                  scheduledDate: 'asc',
-                },
-                take: 10,
-              })
-              .catch(() => []),
+                  orderBy: {
+                    scheduledDate: 'asc',
+                  },
+                  take: 10,
+                });
+                console.log('[DASHBOARD] Found', jobs.length, 'upcoming jobs');
+                jobs.forEach((job, i) => {
+                  console.log(`[DASHBOARD] Job ${i + 1}:`, {
+                    id: job.id,
+                    client: job.client?.name,
+                    date: job.scheduledDate,
+                    status: job.status,
+                  });
+                });
+                return jobs;
+              } catch (error) {
+                console.error('[DASHBOARD] Error fetching upcoming jobs:', error);
+                return [];
+              }
+            })(),
             // Get in-progress jobs
             this.prisma.job
               .findMany({
@@ -235,6 +258,14 @@ export class DashboardService {
               })
               .catch(() => 0),
           ]);
+
+          console.log('[DASHBOARD] Returning stats:', {
+            todayJobs: todayJobs.length,
+            upcomingJobs: upcomingJobs.length,
+            inProgressJobs: inProgressJobs.length,
+            recentJobs: recentJobs.length,
+            totalJobs,
+          });
 
           return {
             todayJobs: todayJobs.length,

@@ -22,8 +22,6 @@
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "seed": "ts-node prisma/seed.ts",
     "create-admin": "ts-node scripts/create-admin.ts",
-    "lint:check": "eslint \"{src,apps,libs,test}/**/*.ts\"",
-    "format:check": "prettier --check \"src/**/*.ts\" \"test/**/*.ts\"",
     "prepare": "husky"
   },
   "prisma": {
@@ -39,8 +37,10 @@
     "@prisma/client": "^6.19.2",
     "@stripe/stripe-js": "^8.7.0",
     "@supabase/supabase-js": "^2.90.1",
+    "@types/archiver": "^7.0.0",
     "@types/nodemailer": "^7.0.9",
     "@types/pdfkit": "^0.17.5",
+    "archiver": "^7.0.1",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.3",
     "compression": "^1.8.1",

@@ -3,7 +3,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { Prisma } from '@prisma/client';
 import { BusinessService } from '../business/business.service';
 import { WhatsAppService } from '../whatsapp/whatsapp.service';
-import { CreateJobDto, UpdateJobDto, JobType } from './dto/job.dto';
+import { CreateJobDto, UpdateJobDto, JobType, JobStatus } from './dto/job.dto';
 import { JobsRepository } from './repositories/jobs.repository';
 import { IJobsService } from './interfaces/jobs.service.interface';
 import { JobEntity, JobWithRelations } from './entities/job.entity';
@@ -518,12 +518,28 @@ export class JobsService implements IJobsService {
     // Cleaners can only update status, not job details
     if (userRole === 'CLEANER') {
       const { status } = data;
-      return this.prisma.job.update({
+      const updatedJob = await this.prisma.job.update({
         where: { id: jobId },
         data: {
           ...(status && { status: status as 'SCHEDULED' | 'IN_PROGRESS' | 'COMPLETED' }),
         },
+        include: {
+          client: { select: { id: true, name: true } },
+          cleaner: { select: { id: true, email: true } },
+        },
       });
+
+      // Log job completion
+      if (status === JobStatus.COMPLETED) {
+        console.log('[JOB COMPLETION] ✅ Job completed by cleaner');
+        console.log('[JOB COMPLETION] Job ID:', jobId);
+        console.log('[JOB COMPLETION] Client:', updatedJob.client.name);
+        console.log('[JOB COMPLETION] Cleaner:', updatedJob.cleaner?.email || 'Owner');
+        console.log('[JOB COMPLETION] Scheduled Date:', updatedJob.scheduledDate);
+        console.log('[JOB COMPLETION] Next steps: Owner can now create an invoice for this job');
+      }
+
+      return updatedJob;
     }
 
     // Owners can update everything
@@ -584,7 +600,15 @@ export class JobsService implements IJobsService {
     photoType: 'BEFORE' | 'AFTER',
     userRole?: string,
   ): Promise<JobPhotoEntity> {
+    console.log('[JOB PHOTO] Starting photo upload');
+    console.log('[JOB PHOTO] User ID:', userId);
+    console.log('[JOB PHOTO] Job ID:', jobId);
+    console.log('[JOB PHOTO] Photo Type:', photoType);
+    console.log('[JOB PHOTO] Image URL:', imageUrl);
+
     await this.findOne(userId, jobId, userRole); // Verify access
+
+    console.log('[JOB PHOTO] Job verified, creating photo record...');
 
     const photo = await this.prisma.jobPhoto.create({
       data: {
@@ -592,6 +616,15 @@ export class JobsService implements IJobsService {
         imageUrl,
         photoType,
       },
+    });
+
+    console.log('[JOB PHOTO] ✅ Photo saved successfully, ID:', photo.id);
+    console.log('[JOB PHOTO] Photo details:', {
+      id: photo.id,
+      jobId: photo.jobId,
+      photoType: photo.photoType,
+      imageUrl: photo.imageUrl,
+      createdAt: photo.createdAt,
     });
 
     return {
@@ -686,5 +719,12 @@ export class JobsService implements IJobsService {
       phoneNumber: job.client.phone,
       message,
     };
+  }
+
+  async getPhotosForDownload(userId: string, jobId: string, userRole?: string) {
+    const job = await this.findOne(userId, jobId, userRole);
+
+    // Return photos with full URLs
+    return job.photos || [];
   }
 }
