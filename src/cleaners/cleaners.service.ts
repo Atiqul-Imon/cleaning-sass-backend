@@ -51,6 +51,14 @@ export class CleanersService {
         throw new BadRequestException('Cannot add an owner as a cleaner');
       }
 
+      // Update existing user's name if provided
+      if (name && name.trim()) {
+        await this.prisma.user.update({
+          where: { id: existingUser.id },
+          data: { name: name.trim() },
+        });
+      }
+
       // Link existing user to business
       const businessCleaner = await this.prisma.businessCleaner.create({
         data: {
@@ -65,6 +73,7 @@ export class CleanersService {
             select: {
               id: true,
               email: true,
+              name: true,
               role: true,
               createdAt: true,
             },
@@ -100,6 +109,7 @@ export class CleanersService {
       data: {
         id: supabaseData.user.id,
         email: supabaseData.user.email!,
+        name: name || null,
         role: 'CLEANER',
       },
     });
@@ -159,6 +169,7 @@ export class CleanersService {
           select: {
             id: true,
             email: true,
+            name: true,
             role: true,
             createdAt: true,
           },
@@ -199,6 +210,7 @@ export class CleanersService {
           id: bc.id,
           cleanerId: bc.cleanerId,
           email: bc.cleaner.email,
+          name: bc.cleaner.name ?? undefined,
           role: bc.cleaner.role,
           status: bc.status,
           totalJobs,
@@ -210,6 +222,76 @@ export class CleanersService {
     );
 
     return cleanersWithStats;
+  }
+
+  /**
+   * Get a single cleaner by ID (owner only)
+   */
+  async getCleanerById(ownerId: string, cleanerId: string) {
+    const business = await this.businessService.findByUserId(ownerId);
+    if (!business) {
+      throw new NotFoundException('Business not found');
+    }
+
+    const businessCleaner = await this.prisma.businessCleaner.findUnique({
+      where: {
+        businessId_cleanerId: {
+          businessId: business.id,
+          cleanerId,
+        },
+      },
+      include: {
+        cleaner: {
+          select: {
+            id: true,
+            email: true,
+            name: true,
+            role: true,
+            createdAt: true,
+          },
+        },
+      },
+    });
+
+    if (!businessCleaner) {
+      throw new NotFoundException('Cleaner not found in this business');
+    }
+
+    const totalJobs = await this.prisma.job.count({
+      where: {
+        businessId: business.id,
+        cleanerId,
+      },
+    });
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    const todayJobs = await this.prisma.job.count({
+      where: {
+        businessId: business.id,
+        cleanerId,
+        scheduledDate: {
+          gte: today,
+          lt: tomorrow,
+        },
+      },
+    });
+
+    return {
+      id: businessCleaner.id,
+      cleanerId: businessCleaner.cleanerId,
+      email: businessCleaner.cleaner.email,
+      name: businessCleaner.cleaner.name ?? undefined,
+      role: businessCleaner.cleaner.role,
+      status: businessCleaner.status,
+      totalJobs,
+      todayJobs,
+      createdAt: businessCleaner.createdAt,
+      activatedAt: businessCleaner.activatedAt,
+    };
   }
 
   /**

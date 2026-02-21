@@ -28,8 +28,12 @@ export class InvoicesController {
 
   @Get()
   @Roles('OWNER') // Only owners can see invoices
-  async findAll(@CurrentUser() user: AuthenticatedUser, @Query() pagination: PaginationDto) {
-    return this.invoicesService.findAll(user.id, pagination);
+  async findAll(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query() pagination: PaginationDto,
+    @Query('status') status?: 'PAID' | 'UNPAID',
+  ) {
+    return this.invoicesService.findAll(user.id, { ...pagination, status });
   }
 
   @Get(':id')

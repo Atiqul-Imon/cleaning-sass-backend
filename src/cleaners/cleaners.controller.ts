@@ -28,6 +28,12 @@ export class CleanersController {
     return this.cleanersService.getCleanerBusiness(user.id);
   }
 
+  @Get(':cleanerId')
+  @Roles('OWNER')
+  async getCleaner(@CurrentUser() user: AuthenticatedUser, @Param('cleanerId') cleanerId: string) {
+    return this.cleanersService.getCleanerById(user.id, cleanerId);
+  }
+
   @Delete(':cleanerId')
   @Roles('OWNER')
   async removeCleaner(

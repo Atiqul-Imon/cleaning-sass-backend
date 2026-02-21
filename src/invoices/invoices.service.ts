@@ -67,22 +67,27 @@ export class InvoicesService implements IInvoicesService {
 
   async findAll(
     userId: string,
-    pagination?: { page?: number; limit?: number },
+    options?: { page?: number; limit?: number; status?: 'PAID' | 'UNPAID' },
   ): Promise<{ data: InvoiceWithRelations[]; pagination: any } | InvoiceWithRelations[]> {
     const business = await this.businessService.findByUserId(userId);
     if (!business) {
       throw new NotFoundException('Business not found');
     }
 
+    const where = {
+      businessId: business.id,
+      ...(options?.status && { status: options.status }),
+    };
+
     // If pagination is requested, return paginated response
-    if (pagination?.page || pagination?.limit) {
-      const page = pagination.page || 1;
-      const limit = Math.min(pagination.limit || 20, 100); // Max 100 items per page
+    if (options?.page || options?.limit) {
+      const page = options.page || 1;
+      const limit = Math.min(options.limit || 20, 100); // Max 100 items per page
       const skip = (page - 1) * limit;
 
       const [invoices, total] = await Promise.all([
         this.prisma.invoice.findMany({
-          where: { businessId: business.id },
+          where,
           select: {
             id: true,
             invoiceNumber: true,
@@ -115,9 +120,7 @@ export class InvoicesService implements IInvoicesService {
           skip,
           take: limit,
         }),
-        this.prisma.invoice.count({
-          where: { businessId: business.id },
-        }),
+        this.prisma.invoice.count({ where }),
       ]);
 
       // Convert Prisma Decimal to number
@@ -143,7 +146,7 @@ export class InvoicesService implements IInvoicesService {
 
     // Return all results (backward compatibility) with optimized select
     const invoices = await this.prisma.invoice.findMany({
-      where: { businessId: business.id },
+      where,
       select: {
         id: true,
         invoiceNumber: true,
