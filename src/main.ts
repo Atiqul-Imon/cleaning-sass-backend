@@ -57,6 +57,8 @@ async function bootstrap() {
     'https://api.clenvora.com',
     'http://localhost:3000', // Development
     'http://localhost:3001', // Development alternative
+    'http://127.0.0.1:3000',
+    'http://127.0.0.1:3001',
   ].filter(Boolean);
 
   app.enableCors({
@@ -68,7 +70,10 @@ async function bootstrap() {
       if (!origin) {
         return callback(null, true);
       }
-
+      // Allow localhost and 127.0.0.1 on any port for development
+      if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) {
+        return callback(null, true);
+      }
       if (allowedOrigins.includes(origin)) {
         callback(null, true);
       } else {
@@ -77,7 +82,7 @@ async function bootstrap() {
     },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
   });
 
   // Global validation pipe

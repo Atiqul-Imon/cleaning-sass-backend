@@ -11,6 +11,7 @@ import { AuthGuard } from '../auth/auth.guard';
 import { UploadService } from './upload.service';
 import type { AuthenticatedUser } from '../shared/types/user.types';
 import { CurrentUser } from '../auth/auth.decorator';
+import * as multer from 'multer';
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
@@ -23,6 +24,7 @@ export class UploadController {
   @Post('image')
   @UseInterceptors(
     FileInterceptor('file', {
+      storage: multer.memoryStorage(),
       limits: { fileSize: MAX_FILE_SIZE },
       fileFilter: (_req, file, cb) => {
         if (ALLOWED_TYPES.includes(file.mimetype)) {
