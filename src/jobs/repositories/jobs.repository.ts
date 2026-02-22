@@ -63,6 +63,7 @@ export class JobsRepository implements IRepository<
           select: {
             id: true,
             email: true,
+            name: true,
           },
         },
         business: {

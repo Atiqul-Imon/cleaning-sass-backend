@@ -137,7 +137,7 @@ export class JobsService implements IJobsService {
         data: jobData,
         include: {
           client: { select: { id: true, name: true } },
-          cleaner: { select: { id: true, email: true } },
+          cleaner: { select: { id: true, email: true, name: true } },
         },
       });
 
@@ -525,7 +525,7 @@ export class JobsService implements IJobsService {
         },
         include: {
           client: { select: { id: true, name: true } },
-          cleaner: { select: { id: true, email: true } },
+          cleaner: { select: { id: true, email: true, name: true } },
         },
       });
 

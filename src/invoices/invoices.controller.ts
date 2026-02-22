@@ -6,7 +6,7 @@ import { PdfService } from './pdf.service';
 import { AuthGuard } from '../auth/auth.guard';
 import { RolesGuard, Roles } from '../auth/roles.guard';
 import { CurrentUser } from '../auth/auth.decorator';
-import { PaginationDto } from '../shared/dto/pagination.dto';
+import { ListInvoicesDto } from './dto/list-invoices.dto';
 
 @Controller('invoices')
 @UseGuards(AuthGuard, RolesGuard)
@@ -28,12 +28,12 @@ export class InvoicesController {
 
   @Get()
   @Roles('OWNER') // Only owners can see invoices
-  async findAll(
-    @CurrentUser() user: AuthenticatedUser,
-    @Query() pagination: PaginationDto,
-    @Query('status') status?: 'PAID' | 'UNPAID',
-  ) {
-    return this.invoicesService.findAll(user.id, { ...pagination, status });
+  async findAll(@CurrentUser() user: AuthenticatedUser, @Query() query: ListInvoicesDto) {
+    return this.invoicesService.findAll(user.id, {
+      page: query.page,
+      limit: query.limit,
+      status: query.status,
+    });
   }
 
   @Get(':id')
