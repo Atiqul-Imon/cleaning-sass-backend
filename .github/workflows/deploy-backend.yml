@@ -61,6 +61,19 @@ jobs:
     if: github.ref == 'refs/heads/main'
 
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Sync prisma and docker-compose to server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.DO_HOST }}
+          username: ${{ secrets.DO_USER }}
+          key: ${{ secrets.DO_SSH_KEY }}
+          port: ${{ secrets.DO_PORT || 22 }}
+          source: "prisma,docker-compose.prod.yml"
+          target: "/opt/fieldneat-backend/backend"
+
       - name: Deploy to Digital Ocean
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -103,8 +116,10 @@ jobs:
               exit 1
             }
             
-            echo "🛑 Stopping existing container..."
+            echo "🛑 Stopping existing containers..."
             docker compose -f docker-compose.prod.yml down || true
+            docker stop cleaning-saas-backend 2>/dev/null || true
+            docker rm cleaning-saas-backend 2>/dev/null || true
             
             echo "🔄 Running database migrations..."
             # Verify .env file exists and has DATABASE_URL
