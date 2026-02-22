@@ -2,6 +2,8 @@
 
 NestJS backend API for the UK Domestic Cleaning SaaS platform.
 
+<!-- ci trigger -->
+
 ## 🚀 Features
 
 - **Modern Stack**: NestJS, TypeScript, Prisma ORM, PostgreSQL
@@ -23,36 +25,41 @@ NestJS backend API for the UK Domestic Cleaning SaaS platform.
 ## 🛠️ Local Setup
 
 1. **Clone the repository**
+
    ```bash
    git clone <your-repo-url>
    cd backend
    ```
 
 2. **Install dependencies**
+
    ```bash
    npm install
    ```
 
 3. **Configure environment variables**
+
    ```bash
    cp .env.example .env
    ```
-   
+
    Edit `.env` and fill in your credentials (see Environment Variables section below).
 
 4. **Set up database**
+
    ```bash
    # Generate Prisma Client
    npx prisma generate
-   
+
    # Run migrations
    npx prisma migrate deploy
-   
+
    # (Optional) Seed database
    npm run seed
    ```
 
 5. **Start development server**
+
    ```bash
    npm run start:dev
    ```
@@ -64,17 +71,20 @@ NestJS backend API for the UK Domestic Cleaning SaaS platform.
 ### Build and Run with Docker
 
 1. **Build the Docker image**
+
    ```bash
    docker build -t cleaning-saas-backend .
    ```
 
 2. **Run with Docker Compose**
+
    ```bash
    # Make sure .env file is configured
    docker-compose up -d
    ```
 
 3. **View logs**
+
    ```bash
    docker-compose logs -f
    ```
@@ -114,29 +124,33 @@ docker run -d \
 ### Step 2: Initial Server Setup
 
 1. **SSH into your droplet**
+
    ```bash
    ssh root@your-droplet-ip
    ```
 
 2. **Update system packages**
+
    ```bash
    apt update && apt upgrade -y
    ```
 
 3. **Install Docker**
+
    ```bash
    # Install Docker
    curl -fsSL https://get.docker.com -o get-docker.sh
    sh get-docker.sh
-   
+
    # Install Docker Compose
    apt install docker-compose-plugin -y
-   
+
    # Add current user to docker group (if not root)
    usermod -aG docker $USER
    ```
 
 4. **Install Node.js (for Prisma migrations)**
+
    ```bash
    curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
    apt install -y nodejs
@@ -150,6 +164,7 @@ docker run -d \
 ### Step 3: Deploy Application
 
 1. **Clone your repository**
+
    ```bash
    cd /opt
    git clone <your-backend-repo-url> cleaning-saas-backend
@@ -157,17 +172,19 @@ docker run -d \
    ```
 
 2. **Configure environment variables**
+
    ```bash
    cp .env.example .env
    nano .env
    ```
-   
+
    Update all required variables, especially:
    - `DATABASE_URL`: Use Supabase connection pooler (port 6543) for production
    - `FRONTEND_URL`: Your frontend URL (e.g., `https://your-app.vercel.app`)
    - `NODE_ENV=production`
 
 3. **Run database migrations**
+
    ```bash
    npm install
    npx prisma generate
@@ -175,18 +192,20 @@ docker run -d \
    ```
 
 4. **Build and start with Docker**
+
    ```bash
    docker-compose up -d --build
    ```
 
 5. **Verify deployment**
+
    ```bash
    # Check container status
    docker-compose ps
-   
+
    # Check logs
    docker-compose logs -f
-   
+
    # Test health endpoint
    curl http://localhost:5000/health
    ```
@@ -194,16 +213,19 @@ docker run -d \
 ### Step 4: Configure Nginx (Reverse Proxy)
 
 1. **Install Nginx**
+
    ```bash
    apt install nginx -y
    ```
 
 2. **Create Nginx configuration**
+
    ```bash
    nano /etc/nginx/sites-available/cleaning-saas-backend
    ```
 
    Add the following configuration:
+
    ```nginx
    server {
        listen 80;
@@ -233,11 +255,13 @@ docker run -d \
 ### Step 5: Setup SSL with Let's Encrypt
 
 1. **Install Certbot**
+
    ```bash
    apt install certbot python3-certbot-nginx -y
    ```
 
 2. **Obtain SSL certificate**
+
    ```bash
    certbot --nginx -d your-domain.com
    ```
@@ -270,26 +294,31 @@ systemctl enable nginx
 ## 🔄 Updating the Application
 
 1. **SSH into droplet**
+
    ```bash
    ssh root@your-droplet-ip
    ```
 
 2. **Navigate to project directory**
+
    ```bash
    cd /opt/cleaning-saas-backend
    ```
 
 3. **Pull latest changes**
+
    ```bash
    git pull origin main
    ```
 
 4. **Run migrations (if any)**
+
    ```bash
    npx prisma migrate deploy
    ```
 
 5. **Rebuild and restart**
+
    ```bash
    docker-compose up -d --build
    ```
@@ -301,24 +330,24 @@ systemctl enable nginx
 
 ## 🔧 Environment Variables
 
-| Variable | Description | Required |
-|----------|-------------|----------|
-| `DATABASE_URL` | PostgreSQL connection string | Yes |
-| `SUPABASE_URL` | Supabase project URL | Yes |
-| `SUPABASE_SERVICE_ROLE_KEY` | Supabase service role key | Yes |
-| `PORT` | Server port (default: 5000) | No |
-| `NODE_ENV` | Environment (development/production) | No |
-| `FRONTEND_URL` | Frontend URL for CORS | Yes |
-| `STRIPE_SECRET_KEY` | Stripe secret key | No |
-| `STRIPE_WEBHOOK_SECRET` | Stripe webhook secret | No |
-| `STRIPE_PRICE_ID_SOLO` | Stripe price ID for Solo plan | No |
-| `STRIPE_PRICE_ID_SMALL_TEAM` | Stripe price ID for Small Team plan | No |
-| `EMAIL_SERVICE` | Email service (gmail/sendgrid/mailgun) | No |
-| `EMAIL_USER` | Email address | No |
-| `EMAIL_API_KEY` | Email API key or app password | No |
-| `IMAGEKIT_PUBLIC_KEY` | ImageKit public key | No |
-| `IMAGEKIT_PRIVATE_KEY` | ImageKit private key | No |
-| `IMAGEKIT_URL_ENDPOINT` | ImageKit URL endpoint | No |
+| Variable                     | Description                            | Required |
+| ---------------------------- | -------------------------------------- | -------- |
+| `DATABASE_URL`               | PostgreSQL connection string           | Yes      |
+| `SUPABASE_URL`               | Supabase project URL                   | Yes      |
+| `SUPABASE_SERVICE_ROLE_KEY`  | Supabase service role key              | Yes      |
+| `PORT`                       | Server port (default: 5000)            | No       |
+| `NODE_ENV`                   | Environment (development/production)   | No       |
+| `FRONTEND_URL`               | Frontend URL for CORS                  | Yes      |
+| `STRIPE_SECRET_KEY`          | Stripe secret key                      | No       |
+| `STRIPE_WEBHOOK_SECRET`      | Stripe webhook secret                  | No       |
+| `STRIPE_PRICE_ID_SOLO`       | Stripe price ID for Solo plan          | No       |
+| `STRIPE_PRICE_ID_SMALL_TEAM` | Stripe price ID for Small Team plan    | No       |
+| `EMAIL_SERVICE`              | Email service (gmail/sendgrid/mailgun) | No       |
+| `EMAIL_USER`                 | Email address                          | No       |
+| `EMAIL_API_KEY`              | Email API key or app password          | No       |
+| `IMAGEKIT_PUBLIC_KEY`        | ImageKit public key                    | No       |
+| `IMAGEKIT_PRIVATE_KEY`       | ImageKit private key                   | No       |
+| `IMAGEKIT_URL_ENDPOINT`      | ImageKit URL endpoint                  | No       |
 
 ## 📁 Project Structure
 
@@ -382,6 +411,7 @@ tail -f /var/log/nginx/error.log
 ### Health Check
 
 The application includes a health check endpoint (if implemented):
+
 ```bash
 curl http://localhost:5000/health
 ```
@@ -389,6 +419,7 @@ curl http://localhost:5000/health
 ### Database Connection
 
 Test database connection:
+
 ```bash
 npx prisma db pull
 ```
@@ -396,21 +427,25 @@ npx prisma db pull
 ## 🐛 Troubleshooting
 
 ### Container won't start
+
 - Check logs: `docker-compose logs`
 - Verify environment variables
 - Ensure database is accessible
 
 ### Database connection errors
+
 - Verify `DATABASE_URL` is correct
 - Check Supabase connection pooler settings
 - Ensure IP is whitelisted in Supabase
 
 ### Port already in use
+
 - Change `PORT` in `.env`
 - Update Nginx configuration
 - Restart services
 
 ### Migration errors
+
 - Check database connection
 - Verify schema.prisma is up to date
 - Run `npx prisma migrate reset` (⚠️ deletes data)
