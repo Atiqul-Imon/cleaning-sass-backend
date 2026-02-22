@@ -3,6 +3,7 @@ import {
   Get,
   Post,
   Put,
+  Patch,
   Delete,
   Body,
   Param,
@@ -122,6 +123,17 @@ export class JobsController {
 
   @Put(':id')
   async update(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+    @Body() data: UpdateJobDto,
+    @Req() req: Request,
+  ) {
+    const userRole = (req as Request & { role?: 'OWNER' | 'CLEANER' | 'ADMIN' }).role || 'OWNER';
+    return this.jobsService.update(user.id, id, data, userRole);
+  }
+
+  @Patch(':id')
+  async patch(
     @CurrentUser() user: AuthenticatedUser,
     @Param('id') id: string,
     @Body() data: UpdateJobDto,
