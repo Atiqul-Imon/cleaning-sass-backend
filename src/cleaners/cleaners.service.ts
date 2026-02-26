@@ -343,7 +343,7 @@ export class CleanersService {
 
   /**
    * Check if business can add another cleaner based on subscription plan
-   * SOLO: 0 cleaners, TEAM: 12, BUSINESS: 100
+   * SOLO: 1 cleaner (FREE), TEAM: 15, BUSINESS: 100
    */
   private async checkCleanerLimit(businessId: string, action: 'add') {
     const subscription = await this.prisma.subscription.findUnique({
@@ -361,9 +361,9 @@ export class CleanersService {
 
     if (action === 'add' && currentCount >= limit) {
       const planNames: Record<string, string> = {
-        SOLO: 'Solo (£4.99/mo - no staff)',
-        TEAM: 'Team (£12.99/mo - up to 12)',
-        BUSINESS: 'Business (£25.99/mo - up to 100)',
+        SOLO: 'Solo (FREE - 1 staff, 20 jobs/mo)',
+        TEAM: 'Team (£14.99/mo - up to 15 staff)',
+        BUSINESS: 'Business (£99.99/mo - up to 100 staff)',
       };
       throw new BadRequestException(
         `Your ${planNames[planType] || planType} plan allows up to ${limit} staff. Upgrade your plan to add more cleaners.`,

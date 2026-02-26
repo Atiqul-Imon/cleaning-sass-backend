@@ -186,26 +186,26 @@ export class SubscriptionsService {
   getCleanerLimit(planType: string): number {
     switch (planType) {
       case 'SOLO':
-        return 0;
+        return 1;
       case 'TEAM':
-        return 12;
+        return 15;
       case 'BUSINESS':
         return 100;
       default:
-        return 0;
+        return 1;
     }
   }
 
   private getPlanLimit(planType: string): number {
     switch (planType) {
       case 'SOLO':
-        return 50;
+        return 20;
       case 'TEAM':
-        return 200;
+        return 9999;
       case 'BUSINESS':
         return 9999;
       default:
-        return 50;
+        return 20;
     }
   }
 }
