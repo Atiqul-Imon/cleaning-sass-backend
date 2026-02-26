@@ -11,7 +11,7 @@ model User {
   id               String            @id @default(uuid())
   email            String            @unique
   name             String?
-  phone            String?           // Used for WhatsApp OTP (cleaners); owners use Business.phone
+  phone            String? // Used for WhatsApp OTP (cleaners); owners use Business.phone
   role             UserRole          @default(OWNER)
   createdAt        DateTime          @default(now()) @map("created_at")
   updatedAt        DateTime          @updatedAt @map("updated_at")
@@ -24,7 +24,7 @@ model User {
 
 model PasswordResetOtp {
   id        String   @id @default(uuid())
-  phone     String   // E.164 normalized
+  phone     String // E.164 normalized
   otpHash   String   @map("otp_hash")
   expiresAt DateTime @map("expires_at")
   createdAt DateTime @default(now()) @map("created_at")
@@ -68,6 +68,7 @@ model Business {
   jobs            Job[]
   subscription    Subscription?
   cleaners        BusinessCleaner[]
+  upgradeRequests UpgradeRequest[]
   cleanerInvites  CleanerInvite[]
 
   @@map("businesses")
@@ -191,21 +192,21 @@ model Invoice {
 }
 
 model Subscription {
-  id                   String              @id @default(uuid())
-  businessId           String              @unique @map("business_id")
-  planType             SubscriptionPlan    @map("plan_type")
-  stripeSubscriptionId String?             @unique @map("stripe_subscription_id")
-  status               SubscriptionStatus  @default(TRIALING)
-  currentPeriodEnd     DateTime            @map("current_period_end")
-  trialStartedAt       DateTime?           @map("trial_started_at")
-  trialEndsAt          DateTime?           @map("trial_ends_at")
-  paymentMethod        PaymentMethod?      @map("payment_method")
-  payoneerEmail        String?             @map("payoneer_email")
-  adminNotes           String?             @map("admin_notes")
-  createdAt            DateTime            @default(now()) @map("created_at")
-  updatedAt            DateTime            @updatedAt @map("updated_at")
+  id                   String             @id @default(uuid())
+  businessId           String             @unique @map("business_id")
+  planType             SubscriptionPlan   @map("plan_type")
+  stripeSubscriptionId String?            @unique @map("stripe_subscription_id")
+  status               SubscriptionStatus @default(TRIALING)
+  currentPeriodEnd     DateTime           @map("current_period_end")
+  trialStartedAt       DateTime?          @map("trial_started_at")
+  trialEndsAt          DateTime?          @map("trial_ends_at")
+  paymentMethod        PaymentMethod?     @map("payment_method")
+  payoneerEmail        String?            @map("payoneer_email")
+  adminNotes           String?            @map("admin_notes")
+  createdAt            DateTime           @default(now()) @map("created_at")
+  updatedAt            DateTime           @updatedAt @map("updated_at")
   usage                JobUsage[]
-  business             Business            @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  business             Business           @relation(fields: [businessId], references: [id], onDelete: Cascade)
 
   @@map("subscriptions")
 }
@@ -267,13 +268,13 @@ enum PaymentMethod {
 }
 
 enum SubscriptionPlan {
-  SOLO   // FREE forever, 1 cleaner, 20 jobs/month
-  TEAM        // £14.99/mo, up to 15 cleaners, unlimited jobs
-  BUSINESS    // £99.99/mo, up to 100 cleaners, unlimited jobs
+  SOLO // FREE forever, 1 cleaner, 20 jobs/month
+  TEAM // £14.99/mo, up to 15 cleaners, unlimited jobs
+  BUSINESS // £99.99/mo, up to 100 cleaners, unlimited jobs
 }
 
 enum SubscriptionStatus {
-  TRIALING  // 1-month free trial for new registrants
+  TRIALING // 1-month free trial for new registrants
   ACTIVE
   CANCELLED
   PAST_DUE
@@ -298,6 +299,25 @@ model BusinessCleaner {
   @@index([cleanerId, status])
   @@index([businessId, status])
   @@map("business_cleaners")
+}
+
+model UpgradeRequest {
+  id           String           @id @default(uuid())
+  businessId   String           @map("business_id")
+  fromPlan     SubscriptionPlan @map("from_plan")
+  toPlan       SubscriptionPlan @map("to_plan")
+  status       String           @default("PENDING") // PENDING, APPROVED, COMPLETED
+  autoUpgraded Boolean          @default(false) @map("auto_upgraded")
+  message      String?
+  createdAt    DateTime         @default(now()) @map("created_at")
+  processedAt  DateTime?        @map("processed_at")
+  processedBy  String?          @map("processed_by")
+  business     Business         @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@index([businessId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("upgrade_requests")
 }
 
 enum CleanerStatus {

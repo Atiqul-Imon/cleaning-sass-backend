@@ -18,6 +18,7 @@ import { PaymentsModule } from './payments/payments.module';
 import { ReportsModule } from './reports/reports.module';
 import { AdminModule } from './admin/admin.module';
 import { UploadModule } from './upload/upload.module';
+import { UpgradeRequestsModule } from './upgrade-requests/upgrade-requests.module';
 
 @Module({
   imports: [
@@ -40,6 +41,7 @@ import { UploadModule } from './upload/upload.module';
     ReportsModule,
     AdminModule,
     UploadModule,
+    UpgradeRequestsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
