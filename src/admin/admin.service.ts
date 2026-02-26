@@ -75,6 +75,8 @@ export class AdminService {
             select: {
               id: true,
               email: true,
+              name: true,
+              phone: true,
               role: true,
               createdAt: true,
             },
@@ -94,6 +96,7 @@ export class AdminService {
               clients: true,
               jobs: true,
               invoices: true,
+              cleaners: true,
             },
           },
         },
@@ -123,6 +126,8 @@ export class AdminService {
           select: {
             id: true,
             email: true,
+            name: true,
+            phone: true,
             role: true,
             createdAt: true,
           },
@@ -147,11 +152,25 @@ export class AdminService {
           take: 10,
           orderBy: { createdAt: 'desc' },
         },
+        cleaners: {
+          take: 20,
+          orderBy: { createdAt: 'desc' },
+          include: {
+            cleaner: {
+              select: {
+                email: true,
+                name: true,
+                phone: true,
+              },
+            },
+          },
+        },
         _count: {
           select: {
             clients: true,
             jobs: true,
             invoices: true,
+            cleaners: true,
           },
         },
       },
