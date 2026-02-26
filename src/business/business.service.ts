@@ -173,6 +173,7 @@ export class BusinessService {
           select: {
             id: true,
             email: true,
+            name: true,
             role: true,
             createdAt: true,
           },
@@ -229,6 +230,7 @@ export class BusinessService {
       id: bc.id,
       cleanerId: bc.cleanerId,
       email: bc.cleaner.email,
+      name: bc.cleaner.name ?? undefined,
       role: bc.cleaner.role,
       status: bc.status,
       totalJobs: totalJobsMap.get(bc.cleanerId) || 0,

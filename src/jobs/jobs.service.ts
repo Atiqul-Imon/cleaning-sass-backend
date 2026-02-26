@@ -392,16 +392,20 @@ export class JobsService implements IJobsService {
       }
     }
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
+    // Use UTC to match how scheduledDate is stored (YYYY-MM-DD -> UTC midnight)
+    // Avoids timezone mismatch where server local "today" excludes jobs
+    const now = new Date();
+    const todayStart = new Date(
+      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 0, 0, 0, 0),
+    );
+    const todayEnd = new Date(todayStart);
+    todayEnd.setUTCDate(todayEnd.getUTCDate() + 1);
 
     const whereClause: Prisma.JobWhereInput = {
       businessId,
       scheduledDate: {
-        gte: today,
-        lt: tomorrow,
+        gte: todayStart,
+        lt: todayEnd,
       },
     };
 
@@ -496,6 +500,7 @@ export class JobsService implements IJobsService {
           select: {
             id: true,
             email: true,
+            name: true,
           },
         },
       },
@@ -579,7 +584,7 @@ export class JobsService implements IJobsService {
       data: updateData,
       include: {
         client: { select: { id: true, name: true } },
-        cleaner: { select: { id: true, email: true } },
+        cleaner: { select: { id: true, email: true, name: true } },
       },
     });
 

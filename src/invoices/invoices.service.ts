@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { BusinessService } from '../business/business.service';
 import { JobsService } from '../jobs/jobs.service';
@@ -29,6 +29,10 @@ export class InvoicesService implements IInvoicesService {
       throw new NotFoundException('Business not found');
     }
     const job = await this.jobsService.findOne(userId, jobId, 'OWNER');
+
+    if (job.invoice) {
+      throw new BadRequestException('This job already has an invoice.');
+    }
 
     // Calculate amounts using domain service
     const vatAmount = this.invoiceDomainService.calculateVAT(amount, business.vatEnabled);
