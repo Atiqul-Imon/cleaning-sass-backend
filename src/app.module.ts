@@ -11,6 +11,7 @@ import { JobsModule } from './jobs/jobs.module';
 import { InvoicesModule } from './invoices/invoices.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { CleanersModule } from './cleaners/cleaners.module';
+import { InvitesModule } from './invites/invites.module';
 import { RemindersModule } from './reminders/reminders.module';
 import { SubscriptionsModule } from './subscriptions/subscriptions.module';
 import { PaymentsModule } from './payments/payments.module';
@@ -32,6 +33,7 @@ import { UploadModule } from './upload/upload.module';
     InvoicesModule,
     DashboardModule,
     CleanersModule,
+    InvitesModule,
     RemindersModule,
     SubscriptionsModule,
     PaymentsModule,

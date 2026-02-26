@@ -34,6 +34,23 @@ model PasswordResetOtp {
   @@map("password_reset_otps")
 }
 
+model CleanerInvite {
+  id         String   @id @default(uuid())
+  email      String
+  name       String?
+  businessId String   @map("business_id")
+  invitedBy  String   @map("invited_by")
+  token      String   @unique
+  expiresAt  DateTime @map("expires_at")
+  createdAt  DateTime @default(now()) @map("created_at")
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@index([token])
+  @@index([businessId])
+  @@index([expiresAt])
+  @@map("cleaner_invites")
+}
+
 model Business {
   id              String            @id @default(uuid())
   userId          String            @unique @map("user_id")
@@ -51,6 +68,7 @@ model Business {
   jobs            Job[]
   subscription    Subscription?
   cleaners        BusinessCleaner[]
+  cleanerInvites  CleanerInvite[]
 
   @@map("businesses")
 }

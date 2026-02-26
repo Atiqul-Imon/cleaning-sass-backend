@@ -4,9 +4,12 @@ import {
   ConflictException,
   BadRequestException,
 } from '@nestjs/common';
+import { randomBytes } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { SupabaseService } from '../auth/supabase.service';
 import { BusinessService } from '../business/business.service';
+
+const INVITE_EXPIRY_HOURS = 168; // 7 days
 
 @Injectable()
 export class CleanersService {
@@ -17,9 +20,14 @@ export class CleanersService {
   ) {}
 
   /**
-   * Create a cleaner account and link to business
+   * Create a cleaner account and link to business, or create an invite link
    */
-  async createCleaner(ownerId: string, email: string, name?: string) {
+  async createCleaner(
+    ownerId: string,
+    email: string,
+    name?: string,
+    method: 'password' | 'invite' = 'password',
+  ) {
     // Get owner's business
     const business = await this.businessService.findByUserId(ownerId);
     if (!business) {
@@ -82,6 +90,10 @@ export class CleanersService {
       });
 
       return businessCleaner;
+    }
+
+    if (method === 'invite') {
+      return this.createInvite(ownerId, email, name);
     }
 
     // Generate a secure random password
@@ -412,5 +424,171 @@ export class CleanersService {
       .split('')
       .sort(() => Math.random() - 0.5)
       .join('');
+  }
+
+  /**
+   * Create an invite link for a cleaner to sign up (email/password or Google)
+   */
+  async createInvite(ownerId: string, email: string, name?: string) {
+    const business = await this.businessService.findByUserId(ownerId);
+    if (!business) {
+      throw new NotFoundException('Business not found');
+    }
+
+    const existingUser = await this.prisma.user.findUnique({ where: { email } });
+    if (existingUser) {
+      const existingLink = await this.prisma.businessCleaner.findUnique({
+        where: {
+          businessId_cleanerId: {
+            businessId: business.id,
+            cleanerId: existingUser.id,
+          },
+        },
+      });
+      if (existingLink) {
+        throw new ConflictException('Cleaner is already linked to this business');
+      }
+      if (existingUser.role === 'OWNER') {
+        throw new BadRequestException('Cannot add an owner as a cleaner');
+      }
+    }
+
+    const token = randomBytes(32).toString('hex');
+    const expiresAt = new Date(Date.now() + INVITE_EXPIRY_HOURS * 60 * 60 * 1000);
+
+    await this.prisma.cleanerInvite.create({
+      data: {
+        email,
+        name: name || null,
+        businessId: business.id,
+        invitedBy: ownerId,
+        token,
+        expiresAt,
+      },
+    });
+
+    const baseUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    const inviteLink = `${baseUrl}/accept-invite?token=${token}`;
+
+    return {
+      inviteLink,
+      email,
+      expiresAt,
+      message: 'Share this link with the staff member. They can sign up with Google or email.',
+    };
+  }
+
+  /**
+   * Validate invite token (public - no auth)
+   */
+  async getInviteByToken(token: string) {
+    const invite = await this.prisma.cleanerInvite.findUnique({
+      where: { token },
+      include: {
+        business: {
+          select: { id: true, name: true },
+        },
+      },
+    });
+    if (!invite || invite.expiresAt < new Date()) {
+      throw new NotFoundException('Invalid or expired invite');
+    }
+    return {
+      email: invite.email,
+      businessName: invite.business.name,
+      businessId: invite.businessId,
+    };
+  }
+
+  /**
+   * Accept invite - link authenticated user to business as cleaner
+   */
+  async acceptInvite(userId: string, token: string) {
+    const invite = await this.prisma.cleanerInvite.findUnique({
+      where: { token },
+      include: { business: true },
+    });
+    if (!invite || invite.expiresAt < new Date()) {
+      throw new NotFoundException('Invalid or expired invite');
+    }
+
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, email: true, role: true },
+    });
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    if (user.email.toLowerCase() !== invite.email.toLowerCase()) {
+      throw new BadRequestException(
+        `This invite was sent to ${invite.email}. Please sign in with that email.`,
+      );
+    }
+
+    const hasBusiness = await this.prisma.business.findUnique({
+      where: { userId },
+    });
+    if (user.role === 'OWNER' && hasBusiness) {
+      throw new BadRequestException(
+        'You already have an owner account. Cannot accept a cleaner invite.',
+      );
+    }
+
+    const existingLink = await this.prisma.businessCleaner.findUnique({
+      where: {
+        businessId_cleanerId: {
+          businessId: invite.businessId,
+          cleanerId: userId,
+        },
+      },
+    });
+    if (existingLink) {
+      throw new ConflictException('You are already on this team');
+    }
+
+    await this.prisma.user.upsert({
+      where: { id: userId },
+      update: { role: 'CLEANER' },
+      create: { id: userId, email: user.email, role: 'CLEANER' },
+    });
+
+    await this.prisma.businessCleaner.create({
+      data: {
+        businessId: invite.businessId,
+        cleanerId: userId,
+        status: 'ACTIVE',
+        invitedBy: invite.invitedBy,
+        activatedAt: new Date(),
+      },
+    });
+
+    await this.prisma.cleanerInvite.delete({ where: { id: invite.id } });
+
+    return {
+      success: true,
+      businessName: invite.business.name,
+      message: `You've joined ${invite.business.name}.`,
+    };
+  }
+
+  /**
+   * Leave team - cleaner removes themselves from the business
+   */
+  async leaveTeam(cleanerId: string) {
+    const link = await this.prisma.businessCleaner.findFirst({
+      where: { cleanerId, status: 'ACTIVE' },
+      include: { business: true },
+    });
+    if (!link) {
+      throw new NotFoundException('You are not linked to any business');
+    }
+
+    await this.prisma.businessCleaner.delete({ where: { id: link.id } });
+
+    return {
+      success: true,
+      message: `You've left ${link.business.name}.`,
+    };
   }
 }

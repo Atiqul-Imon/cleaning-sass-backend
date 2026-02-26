@@ -14,7 +14,24 @@ export class CleanersController {
   @Post()
   @Roles('OWNER')
   async createCleaner(@CurrentUser() user: AuthenticatedUser, @Body() data: CreateCleanerDto) {
-    return this.cleanersService.createCleaner(user.id, data.email, data.name);
+    return this.cleanersService.createCleaner(
+      user.id,
+      data.email,
+      data.name,
+      data.method ?? 'password',
+    );
+  }
+
+  @Post('leave')
+  @Roles('CLEANER')
+  async leaveTeam(@CurrentUser() user: AuthenticatedUser) {
+    return this.cleanersService.leaveTeam(user.id);
+  }
+
+  @Post('accept-invite')
+  @Roles('CLEANER', 'OWNER')
+  async acceptInvite(@CurrentUser() user: AuthenticatedUser, @Body('token') token: string) {
+    return this.cleanersService.acceptInvite(user.id, token);
   }
 
   @Get()

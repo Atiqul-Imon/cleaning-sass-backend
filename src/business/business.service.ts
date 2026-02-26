@@ -81,6 +81,34 @@ export class BusinessService {
     }
   }
 
+  /**
+   * Create business for cleaner who left a team (become owner)
+   */
+  async createMyBusiness(userId: string, data: CreateBusinessDto) {
+    const existingBusiness = await this.prisma.business.findUnique({
+      where: { userId },
+    });
+    if (existingBusiness) {
+      throw new ConflictException('You already have a business');
+    }
+    const business = await this.prisma.business.create({
+      data: {
+        userId,
+        invoiceTemplate: data.invoiceTemplate || 'classic',
+        name: data.name,
+        phone: data.phone,
+        address: data.address,
+        vatEnabled: data.vatEnabled || false,
+        vatNumber: data.vatNumber,
+      },
+    });
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { role: 'OWNER' },
+    });
+    return business;
+  }
+
   async findByUserId(userId: string): Promise<Prisma.BusinessGetPayload<{
     include: { user: { select: { id: true; email: true; role: true } } };
   }> | null> {

@@ -26,7 +26,7 @@ export class BusinessController {
   }
 
   @Post()
-  @Roles('OWNER') // Only owners can create business
+  @Roles('OWNER')
   async createBusiness(@CurrentUser() user: AuthenticatedUser, @Body() data: CreateBusinessDto) {
     try {
       return await this.businessService.create(user.id, data);
@@ -36,6 +36,22 @@ export class BusinessController {
         throw error;
       }
       // Wrap other errors
+      throw new HttpException(
+        error.message || 'Failed to create business',
+        error.status || HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  @Post('become-owner')
+  @Roles('CLEANER', 'OWNER')
+  async becomeOwner(@CurrentUser() user: AuthenticatedUser, @Body() data: CreateBusinessDto) {
+    try {
+      return await this.businessService.createMyBusiness(user.id, data);
+    } catch (error: any) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
       throw new HttpException(
         error.message || 'Failed to create business',
         error.status || HttpStatus.INTERNAL_SERVER_ERROR,
