@@ -21,7 +21,7 @@ export interface IJobsService {
     userId: string,
     userRole?: string,
     pagination?: { page?: number; limit?: number },
-  ): Promise<JobWithRelations[] | { data: JobWithRelations[]; pagination: any }>;
+  ): Promise<JobWithRelations[] | { data: JobWithRelations[]; pagination?: any }>;
 
   /**
    * Find a single job by ID

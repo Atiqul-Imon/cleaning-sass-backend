@@ -72,7 +72,7 @@ export class InvoicesService implements IInvoicesService {
   async findAll(
     userId: string,
     options?: { page?: number; limit?: number; status?: 'PAID' | 'UNPAID' },
-  ): Promise<{ data: InvoiceWithRelations[]; pagination: any } | InvoiceWithRelations[]> {
+  ): Promise<{ data: InvoiceWithRelations[]; pagination?: any } | InvoiceWithRelations[]> {
     const business = await this.businessService.findByUserId(userId);
     if (!business) {
       throw new NotFoundException('Business not found');
@@ -182,13 +182,14 @@ export class InvoicesService implements IInvoicesService {
       orderBy: { createdAt: 'desc' },
     });
 
-    // Convert Prisma Decimal to number
-    return invoices.map((invoice) => ({
+    // Convert Prisma Decimal to number and return unified list shape
+    const data = invoices.map((invoice) => ({
       ...invoice,
       amount: Number(invoice.amount),
       vatAmount: Number(invoice.vatAmount),
       totalAmount: Number(invoice.totalAmount),
     })) as InvoiceWithRelations[];
+    return { data };
   }
 
   async findOne(userId: string, invoiceId: string): Promise<InvoiceWithRelations> {

@@ -219,7 +219,7 @@ export class JobsService implements IJobsService {
     userId: string,
     userRole?: string,
     pagination?: { page?: number; limit?: number },
-  ): Promise<{ data: JobWithRelations[]; pagination: any } | JobWithRelations[]> {
+  ): Promise<{ data: JobWithRelations[]; pagination?: any } | JobWithRelations[]> {
     const startTime = Date.now();
     console.log('='.repeat(80));
     console.log('[JOBS FINDALL] Starting findAll operation');
@@ -300,7 +300,7 @@ export class JobsService implements IJobsService {
       console.log('[JOBS FINDALL] ✅ Successfully fetched', allJobs.length, 'jobs');
       console.log('[JOBS FINDALL] Duration:', `${duration}ms`);
       console.log('='.repeat(80));
-      return allJobs;
+      return { data: allJobs };
     } catch (error) {
       const duration = Date.now() - startTime;
       // Log error for debugging
@@ -351,8 +351,8 @@ export class JobsService implements IJobsService {
         };
       }
 
-      // Return empty array for backward compatibility
-      return [];
+      // Return empty list shape for consistency
+      return { data: [] };
     }
   }
 

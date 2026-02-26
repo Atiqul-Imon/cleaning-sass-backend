@@ -19,7 +19,7 @@ export interface IClientsService {
     userId: string,
     userRole?: string,
     pagination?: { page?: number; limit?: number },
-  ): Promise<ClientWithRelations[] | { data: ClientWithRelations[]; pagination: any }>;
+  ): Promise<ClientWithRelations[] | { data: ClientWithRelations[]; pagination?: any }>;
 
   /**
    * Find a single client by ID

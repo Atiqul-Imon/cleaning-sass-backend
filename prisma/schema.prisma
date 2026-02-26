@@ -11,6 +11,7 @@ model User {
   id               String            @id @default(uuid())
   email            String            @unique
   name             String?
+  phone            String?           // Used for WhatsApp OTP (cleaners); owners use Business.phone
   role             UserRole          @default(OWNER)
   createdAt        DateTime          @default(now()) @map("created_at")
   updatedAt        DateTime          @updatedAt @map("updated_at")
@@ -19,6 +20,18 @@ model User {
   assignedJobs     Job[]             @relation("AssignedCleaner")
 
   @@map("users")
+}
+
+model PasswordResetOtp {
+  id        String   @id @default(uuid())
+  phone     String   // E.164 normalized
+  otpHash   String   @map("otp_hash")
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([phone])
+  @@index([expiresAt])
+  @@map("password_reset_otps")
 }
 
 model Business {

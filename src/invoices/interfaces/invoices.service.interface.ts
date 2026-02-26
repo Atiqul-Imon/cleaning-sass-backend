@@ -17,7 +17,7 @@ export interface IInvoicesService {
   findAll(
     userId: string,
     pagination?: { page?: number; limit?: number },
-  ): Promise<InvoiceWithRelations[] | { data: InvoiceWithRelations[]; pagination: any }>;
+  ): Promise<InvoiceWithRelations[] | { data: InvoiceWithRelations[]; pagination?: any }>;
 
   /**
    * Find a single invoice by ID

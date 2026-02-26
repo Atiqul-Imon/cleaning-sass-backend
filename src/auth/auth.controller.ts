@@ -5,6 +5,7 @@ import { CurrentUser } from './auth.decorator';
 import { AuthService } from './auth.service';
 import { SupabaseService } from './supabase.service';
 import { ChangePasswordDto } from './dto/change-password.dto';
+import { ResetPasswordOtpDto } from './dto/reset-password-otp.dto';
 import { SignupDto } from './dto/signup.dto';
 import { UserRole } from '@prisma/client';
 
@@ -121,7 +122,21 @@ export class AuthController {
   }
 
   @Post('forgot-password')
-  async forgotPassword(@Body('email') email: string) {
-    return this.authService.requestPasswordReset(email);
+  async forgotPassword(@Body('email') email: string, @Body('phone') phone: string) {
+    if (phone && String(phone).trim()) {
+      return this.authService.requestPasswordResetOtp(String(phone).trim());
+    }
+    if (email && String(email).trim()) {
+      return this.authService.requestPasswordReset(String(email).trim());
+    }
+    throw new HttpException(
+      'Provide either email (for reset link) or phone (for WhatsApp OTP).',
+      HttpStatus.BAD_REQUEST,
+    );
+  }
+
+  @Post('reset-password-otp')
+  async resetPasswordOtp(@Body() dto: ResetPasswordOtpDto) {
+    return this.authService.resetPasswordWithOtp(dto.phone, dto.otp, dto.newPassword);
   }
 }

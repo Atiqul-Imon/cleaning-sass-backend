@@ -42,7 +42,7 @@ export class ClientsService implements IClientsService {
     userId: string,
     userRole?: string,
     pagination?: { page?: number; limit?: number },
-  ): Promise<{ data: ClientWithRelations[]; pagination: any } | ClientWithRelations[]> {
+  ): Promise<{ data: ClientWithRelations[]; pagination?: any } | ClientWithRelations[]> {
     try {
       const businessId = await this.businessIdService.getBusinessId(userId, userRole as any);
 
@@ -70,10 +70,11 @@ export class ClientsService implements IClientsService {
         };
       }
 
-      // Return all results (backward compatibility)
-      return this.clientsRepository.findAllWithRelations({ businessId });
+      // Return all results (backward compatibility) with unified list shape
+      const data = await this.clientsRepository.findAllWithRelations({ businessId });
+      return { data };
     } catch {
-      // If business doesn't exist yet, return empty array
+      // If business doesn't exist yet, return empty list shape
       return pagination
         ? {
             data: [],
@@ -86,7 +87,7 @@ export class ClientsService implements IClientsService {
               hasPrev: false,
             },
           }
-        : [];
+        : { data: [] };
     }
   }
 
