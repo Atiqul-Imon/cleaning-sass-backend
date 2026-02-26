@@ -19,11 +19,15 @@ export class AuthController {
   @Get('me')
   @UseGuards(AuthGuard)
   async getMe(@CurrentUser() user: AuthenticatedUser) {
-    const role = await this.authService.getUserRole(user.id);
+    let role = await this.authService.getUserRole(user.id);
+    if (role === null) {
+      await this.authService.createOrUpdateUser(user.id, user.email || '', UserRole.OWNER);
+      role = await this.authService.getUserRole(user.id);
+    }
     return {
       id: user.id,
       email: user.email,
-      role,
+      role: role || 'OWNER',
     };
   }
 
