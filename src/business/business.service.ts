@@ -53,6 +53,8 @@ export class BusinessService {
         },
       });
 
+      await this.createTrialSubscription(business.id);
+
       return business;
     } catch (error: any) {
       // If it's already an HttpException, re-throw it
@@ -106,6 +108,7 @@ export class BusinessService {
       where: { id: userId },
       data: { role: 'OWNER' },
     });
+    await this.createTrialSubscription(business.id);
     return business;
   }
 
@@ -153,6 +156,26 @@ export class BusinessService {
       // Re-throw as a more descriptive error
       throw new Error(`Failed to fetch business: ${error.message || 'Unknown error'}`);
     }
+  }
+
+  /**
+   * Create 1-month free trial subscription for new businesses
+   */
+  private async createTrialSubscription(businessId: string) {
+    const now = new Date();
+    const trialEnd = new Date(now);
+    trialEnd.setMonth(trialEnd.getMonth() + 1);
+
+    await this.prisma.subscription.create({
+      data: {
+        businessId,
+        planType: 'TEAM',
+        status: 'TRIALING',
+        trialStartedAt: now,
+        trialEndsAt: trialEnd,
+        currentPeriodEnd: trialEnd,
+      },
+    });
   }
 
   async update(userId: string, data: UpdateBusinessDto) {

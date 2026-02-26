@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
@@ -84,6 +84,9 @@ export class AdminService {
               planType: true,
               status: true,
               currentPeriodEnd: true,
+              trialStartedAt: true,
+              trialEndsAt: true,
+              payoneerEmail: true,
             },
           },
           _count: {
@@ -151,6 +154,151 @@ export class AdminService {
             invoices: true,
           },
         },
+      },
+    });
+  }
+
+  async getSubscriptions(filters?: { status?: string; planType?: string }) {
+    const where: Record<string, unknown> = {};
+    if (filters?.status) {
+      where.status = filters.status;
+    }
+    if (filters?.planType) {
+      where.planType = filters.planType;
+    }
+
+    const subscriptions = await this.prisma.subscription.findMany({
+      where,
+      include: {
+        business: {
+          select: {
+            id: true,
+            name: true,
+            user: {
+              select: {
+                id: true,
+                email: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: { updatedAt: 'desc' },
+    });
+
+    return subscriptions;
+  }
+
+  async getSubscriptionByBusinessId(businessId: string) {
+    return this.prisma.subscription.findUnique({
+      where: { businessId },
+      include: {
+        business: {
+          select: {
+            id: true,
+            name: true,
+            user: {
+              select: {
+                id: true,
+                email: true,
+              },
+            },
+          },
+        },
+      },
+    });
+  }
+
+  async updateSubscription(
+    businessId: string,
+    data: {
+      planType?: 'SOLO' | 'TEAM' | 'BUSINESS';
+      status?: 'TRIALING' | 'ACTIVE' | 'CANCELLED' | 'PAST_DUE';
+      currentPeriodEnd?: Date;
+      payoneerEmail?: string;
+      adminNotes?: string;
+      paymentMethod?: string;
+    },
+  ) {
+    const subscription = await this.prisma.subscription.findUnique({
+      where: { businessId },
+    });
+    if (!subscription) {
+      throw new NotFoundException('Subscription not found');
+    }
+
+    const updateData: Record<string, unknown> = {};
+    if (data.planType !== undefined) {
+      updateData.planType = data.planType;
+    }
+    if (data.status !== undefined) {
+      updateData.status = data.status;
+    }
+    if (data.currentPeriodEnd !== undefined) {
+      updateData.currentPeriodEnd = data.currentPeriodEnd;
+    }
+    if (data.payoneerEmail !== undefined) {
+      updateData.payoneerEmail = data.payoneerEmail;
+    }
+    if (data.adminNotes !== undefined) {
+      updateData.adminNotes = data.adminNotes;
+    }
+    if (data.paymentMethod !== undefined) {
+      updateData.paymentMethod = data.paymentMethod;
+    }
+
+    return this.prisma.subscription.update({
+      where: { id: subscription.id },
+      data: updateData,
+    });
+  }
+
+  async extendSubscription(businessId: string, months: number) {
+    const subscription = await this.prisma.subscription.findUnique({
+      where: { businessId },
+    });
+    if (!subscription) {
+      throw new NotFoundException('Subscription not found');
+    }
+
+    const newEnd = new Date(subscription.currentPeriodEnd);
+    newEnd.setMonth(newEnd.getMonth() + months);
+
+    return this.prisma.subscription.update({
+      where: { id: subscription.id },
+      data: { currentPeriodEnd: newEnd },
+    });
+  }
+
+  async recordPayment(
+    businessId: string,
+    data: {
+      planType: 'SOLO' | 'TEAM' | 'BUSINESS';
+      months?: number;
+      payoneerEmail?: string;
+      adminNotes?: string;
+    },
+  ) {
+    const subscription = await this.prisma.subscription.findUnique({
+      where: { businessId },
+    });
+    if (!subscription) {
+      throw new NotFoundException('Subscription not found');
+    }
+
+    const months = data.months ?? 1;
+    const newEnd = new Date();
+    newEnd.setMonth(newEnd.getMonth() + months);
+
+    return this.prisma.subscription.update({
+      where: { id: subscription.id },
+      data: {
+        planType: data.planType,
+        status: 'ACTIVE',
+        currentPeriodEnd: newEnd,
+        paymentMethod: 'PAYONEER',
+        payoneerEmail: data.payoneerEmail ?? subscription.payoneerEmail,
+        adminNotes: data.adminNotes ?? subscription.adminNotes,
       },
     });
   }

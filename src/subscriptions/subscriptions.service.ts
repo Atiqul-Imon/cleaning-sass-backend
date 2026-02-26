@@ -26,7 +26,7 @@ export class SubscriptionsService {
     });
 
     if (!subscription) {
-      // Create default FREE subscription if none exists
+      // Create default 1-month trial subscription
       return this.createDefaultSubscription(business.id);
     }
 
@@ -34,12 +34,18 @@ export class SubscriptionsService {
   }
 
   async createDefaultSubscription(businessId: string) {
+    const now = new Date();
+    const trialEnd = new Date(now);
+    trialEnd.setMonth(trialEnd.getMonth() + 1);
+
     const subscription = await this.prisma.subscription.create({
       data: {
         businessId,
-        planType: 'FREE',
-        status: 'ACTIVE',
-        currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
+        planType: 'TEAM',
+        status: 'TRIALING',
+        trialStartedAt: now,
+        trialEndsAt: trialEnd,
+        currentPeriodEnd: trialEnd,
       },
     });
 
@@ -48,7 +54,7 @@ export class SubscriptionsService {
 
   async updateSubscription(
     userId: string,
-    planType: 'FREE' | 'SOLO' | 'SMALL_TEAM',
+    planType: 'SOLO' | 'TEAM' | 'BUSINESS',
     stripeSubscriptionId?: string,
   ) {
     const business = await this.businessService.findByUserId(userId);
@@ -153,10 +159,11 @@ export class SubscriptionsService {
 
     if (!subscription) {
       return {
-        currentPlan: 'FREE',
-        status: 'ACTIVE',
+        currentPlan: 'SOLO',
+        status: 'TRIALING',
         usage: [],
-        monthlyLimit: this.getPlanLimit('FREE'),
+        monthlyLimit: this.getPlanLimit('SOLO'),
+        cleanerLimit: this.getCleanerLimit('SOLO'),
       };
     }
 
@@ -171,20 +178,34 @@ export class SubscriptionsService {
       status: subscription.status,
       currentMonthUsage: currentUsage?.jobCount || 0,
       monthlyLimit: this.getPlanLimit(subscription.planType),
+      cleanerLimit: this.getCleanerLimit(subscription.planType),
       usage: subscription.usage,
     };
   }
 
+  getCleanerLimit(planType: string): number {
+    switch (planType) {
+      case 'SOLO':
+        return 0;
+      case 'TEAM':
+        return 12;
+      case 'BUSINESS':
+        return 100;
+      default:
+        return 0;
+    }
+  }
+
   private getPlanLimit(planType: string): number {
     switch (planType) {
-      case 'FREE':
-        return 10; // 10 jobs per month
       case 'SOLO':
-        return 50; // 50 jobs per month
-      case 'SMALL_TEAM':
-        return 200; // 200 jobs per month
+        return 50;
+      case 'TEAM':
+        return 200;
+      case 'BUSINESS':
+        return 9999;
       default:
-        return 10;
+        return 50;
     }
   }
 }

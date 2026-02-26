@@ -15,7 +15,7 @@ export class PaymentsController {
   @Roles('OWNER')
   async createCheckoutSession(
     @CurrentUser() user: AuthenticatedUser,
-    @Body('planType') planType: 'SOLO' | 'SMALL_TEAM',
+    @Body('planType') planType: 'SOLO' | 'TEAM' | 'BUSINESS',
   ) {
     return this.paymentsService.createCheckoutSession(user.id, planType);
   }

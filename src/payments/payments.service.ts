@@ -26,7 +26,7 @@ export class PaymentsService {
 
   async createCheckoutSession(
     userId: string,
-    planType: 'SOLO' | 'SMALL_TEAM',
+    planType: 'SOLO' | 'TEAM' | 'BUSINESS',
   ): Promise<{ sessionId: string; url: string }> {
     if (!this.stripe) {
       throw new Error('Stripe is not configured');
@@ -37,9 +37,10 @@ export class PaymentsService {
       throw new NotFoundException('Business not found');
     }
 
-    const priceMap = {
+    const priceMap: Record<string, string> = {
       SOLO: process.env.STRIPE_PRICE_ID_SOLO || 'price_solo',
-      SMALL_TEAM: process.env.STRIPE_PRICE_ID_SMALL_TEAM || 'price_small_team',
+      TEAM: process.env.STRIPE_PRICE_ID_TEAM || 'price_team',
+      BUSINESS: process.env.STRIPE_PRICE_ID_BUSINESS || 'price_business',
     };
 
     const session = await this.stripe.checkout.sessions.create({
@@ -127,7 +128,7 @@ export class PaymentsService {
 
   private async handleCheckoutCompleted(session: Stripe.Checkout.Session) {
     const businessId = session.metadata?.businessId;
-    const planType = session.metadata?.planType as 'SOLO' | 'SMALL_TEAM';
+    const planType = session.metadata?.planType as 'SOLO' | 'TEAM' | 'BUSINESS';
 
     if (!businessId || !planType) {
       this.logger.error('Missing metadata in checkout session');
@@ -178,7 +179,13 @@ export class PaymentsService {
       return;
     }
 
-    await this.subscriptionsService.cancelSubscription(dbSubscription.businessId);
+    const business = await this.prisma.business.findUnique({
+      where: { id: dbSubscription.businessId },
+      select: { userId: true },
+    });
+    if (business) {
+      await this.subscriptionsService.cancelSubscription(business.userId);
+    }
     this.logger.log(`Subscription cancelled for business ${dbSubscription.businessId}`);
   }
 

@@ -4,9 +4,10 @@ import { CleanersService } from './cleaners.service';
 import { PrismaModule } from '../prisma/prisma.module';
 import { AuthModule } from '../auth/auth.module';
 import { BusinessModule } from '../business/business.module';
+import { SubscriptionsModule } from '../subscriptions/subscriptions.module';
 
 @Module({
-  imports: [PrismaModule, AuthModule, BusinessModule],
+  imports: [PrismaModule, AuthModule, BusinessModule, SubscriptionsModule],
   controllers: [CleanersController],
   providers: [CleanersService],
   exports: [CleanersService],

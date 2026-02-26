@@ -8,6 +8,7 @@ import { randomBytes } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { SupabaseService } from '../auth/supabase.service';
 import { BusinessService } from '../business/business.service';
+import { SubscriptionsService } from '../subscriptions/subscriptions.service';
 
 const INVITE_EXPIRY_HOURS = 168; // 7 days
 
@@ -17,6 +18,7 @@ export class CleanersService {
     private prisma: PrismaService,
     private supabaseService: SupabaseService,
     private businessService: BusinessService,
+    private subscriptionsService: SubscriptionsService,
   ) {}
 
   /**
@@ -33,6 +35,9 @@ export class CleanersService {
     if (!business) {
       throw new NotFoundException('Business not found');
     }
+
+    // Enforce cleaner limit from subscription plan
+    await this.checkCleanerLimit(business.id, 'add');
 
     // Check if user already exists
     const existingUser = await this.prisma.user.findUnique({
@@ -401,6 +406,36 @@ export class CleanersService {
   }
 
   /**
+   * Check if business can add another cleaner based on subscription plan
+   * SOLO: 0 cleaners, TEAM: 12, BUSINESS: 100
+   */
+  private async checkCleanerLimit(businessId: string, action: 'add') {
+    const subscription = await this.prisma.subscription.findUnique({
+      where: { businessId },
+    });
+    const planType = subscription?.planType ?? 'SOLO';
+    const limit = this.subscriptionsService.getCleanerLimit(planType);
+
+    const currentCount = await this.prisma.businessCleaner.count({
+      where: {
+        businessId,
+        status: 'ACTIVE',
+      },
+    });
+
+    if (action === 'add' && currentCount >= limit) {
+      const planNames: Record<string, string> = {
+        SOLO: 'Solo (£4.99/mo - no staff)',
+        TEAM: 'Team (£12.99/mo - up to 12)',
+        BUSINESS: 'Business (£25.99/mo - up to 100)',
+      };
+      throw new BadRequestException(
+        `Your ${planNames[planType] || planType} plan allows up to ${limit} staff. Upgrade your plan to add more cleaners.`,
+      );
+    }
+  }
+
+  /**
    * Generate a secure temporary password
    */
   private generateTempPassword(): string {
@@ -434,6 +469,9 @@ export class CleanersService {
     if (!business) {
       throw new NotFoundException('Business not found');
     }
+
+    // Enforce cleaner limit from subscription plan
+    await this.checkCleanerLimit(business.id, 'add');
 
     const existingUser = await this.prisma.user.findUnique({ where: { email } });
     if (existingUser) {

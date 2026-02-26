@@ -191,16 +191,21 @@ model Invoice {
 }
 
 model Subscription {
-  id                   String             @id @default(uuid())
-  businessId           String             @unique @map("business_id")
-  planType             SubscriptionPlan   @map("plan_type")
-  stripeSubscriptionId String?            @unique @map("stripe_subscription_id")
-  status               SubscriptionStatus @default(ACTIVE)
-  currentPeriodEnd     DateTime           @map("current_period_end")
-  createdAt            DateTime           @default(now()) @map("created_at")
-  updatedAt            DateTime           @updatedAt @map("updated_at")
+  id                   String              @id @default(uuid())
+  businessId           String              @unique @map("business_id")
+  planType             SubscriptionPlan    @map("plan_type")
+  stripeSubscriptionId String?             @unique @map("stripe_subscription_id")
+  status               SubscriptionStatus  @default(TRIALING)
+  currentPeriodEnd     DateTime            @map("current_period_end")
+  trialStartedAt       DateTime?           @map("trial_started_at")
+  trialEndsAt          DateTime?           @map("trial_ends_at")
+  paymentMethod        PaymentMethod?      @map("payment_method")
+  payoneerEmail        String?             @map("payoneer_email")
+  adminNotes           String?             @map("admin_notes")
+  createdAt            DateTime            @default(now()) @map("created_at")
+  updatedAt            DateTime            @updatedAt @map("updated_at")
   usage                JobUsage[]
-  business             Business           @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  business             Business            @relation(fields: [businessId], references: [id], onDelete: Cascade)
 
   @@map("subscriptions")
 }
@@ -258,15 +263,17 @@ enum PaymentMethod {
   BANK_TRANSFER
   CARD
   CASH
+  PAYONEER
 }
 
 enum SubscriptionPlan {
-  FREE
-  SOLO
-  SMALL_TEAM
+  SOLO   // £4.99/mo, 0 cleaners
+  TEAM   // £12.99/mo, up to 12 cleaners
+  BUSINESS // £25.99/mo, up to 100 cleaners
 }
 
 enum SubscriptionStatus {
+  TRIALING  // 1-month free trial for new registrants
   ACTIVE
   CANCELLED
   PAST_DUE

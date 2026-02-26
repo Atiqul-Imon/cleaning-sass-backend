@@ -26,7 +26,7 @@ export class SubscriptionsController {
   @Roles('OWNER')
   async updatePlan(
     @CurrentUser() user: AuthenticatedUser,
-    @Body('planType') planType: 'FREE' | 'SOLO' | 'SMALL_TEAM',
+    @Body('planType') planType: 'SOLO' | 'TEAM' | 'BUSINESS',
     @Body('stripeSubscriptionId') stripeSubscriptionId?: string,
   ) {
     return this.subscriptionsService.updateSubscription(user.id, planType, stripeSubscriptionId);
