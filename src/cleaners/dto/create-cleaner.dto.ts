@@ -8,9 +8,9 @@ export class CreateCleanerDto {
   @IsOptional()
   name?: string;
 
-  /** 'password' = create with temp password (default); 'invite' = send invite link for signup via Google/email */
+  /** 'invite' = send invite link for signup via Google/email (only supported method - no temp password) */
   @IsString()
   @IsOptional()
-  @IsIn(['password', 'invite'])
-  method?: 'password' | 'invite' = 'password';
+  @IsIn(['invite'] as const)
+  method?: 'invite';
 }

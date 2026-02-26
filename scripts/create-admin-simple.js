@@ -67,8 +67,8 @@ async function main() {
     console.log('\n✅ Admin account created successfully!');
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
     console.log(`   Email: ${ADMIN_EMAIL}`);
-    console.log(`   Password: ${ADMIN_PASSWORD}`);
-    console.log(`   Role: ADMIN`);
+    console.log('   Password: (see .env or config - do not log)');
+    console.log('   Role: ADMIN');
     console.log(`   User ID: ${admin.id}`);
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
     console.log('\n🌐 Login at: https://clenvora.com/login');

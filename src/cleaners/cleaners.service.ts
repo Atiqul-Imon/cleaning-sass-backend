@@ -6,7 +6,6 @@ import {
 } from '@nestjs/common';
 import { randomBytes } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
-import { SupabaseService } from '../auth/supabase.service';
 import { BusinessService } from '../business/business.service';
 import { SubscriptionsService } from '../subscriptions/subscriptions.service';
 
@@ -16,7 +15,6 @@ const INVITE_EXPIRY_HOURS = 168; // 7 days
 export class CleanersService {
   constructor(
     private prisma: PrismaService,
-    private supabaseService: SupabaseService,
     private businessService: BusinessService,
     private subscriptionsService: SubscriptionsService,
   ) {}
@@ -97,75 +95,13 @@ export class CleanersService {
       return businessCleaner;
     }
 
+    // For security: always use invite link. Temp password would expose credentials in API response.
     if (method === 'invite') {
       return this.createInvite(ownerId, email, name);
     }
 
-    // Generate a secure random password
-    const tempPassword = this.generateTempPassword();
-
-    // Create user in Supabase Auth
-    const adminClient = this.supabaseService.getAdminClient();
-    const { data: supabaseData, error: supabaseError } = await adminClient.auth.admin.createUser({
-      email,
-      password: tempPassword,
-      email_confirm: true, // Auto-confirm email
-      user_metadata: {
-        name: name || email.split('@')[0],
-      },
-    });
-
-    if (supabaseError || !supabaseData.user) {
-      throw new BadRequestException(
-        `Failed to create user: ${supabaseError?.message || 'Unknown error'}`,
-      );
-    }
-
-    // Create user in our database with CLEANER role
-    const user = await this.prisma.user.create({
-      data: {
-        id: supabaseData.user.id,
-        email: supabaseData.user.email!,
-        name: name || null,
-        role: 'CLEANER',
-      },
-    });
-
-    // Link cleaner to business
-    const businessCleaner = await this.prisma.businessCleaner.create({
-      data: {
-        businessId: business.id,
-        cleanerId: user.id,
-        status: 'ACTIVE',
-        invitedBy: ownerId,
-        activatedAt: new Date(),
-      },
-      include: {
-        cleaner: {
-          select: {
-            id: true,
-            email: true,
-            role: true,
-            createdAt: true,
-          },
-        },
-        business: {
-          select: {
-            id: true,
-            name: true,
-            phone: true,
-            address: true,
-          },
-        },
-      },
-    });
-
-    // TODO: Send welcome email with password
-    // For now, return password in response (should be removed in production)
-    return {
-      ...businessCleaner,
-      tempPassword, // Remove this in production, send via email instead
-    };
+    // method === 'password' → use invite flow instead (no password in response)
+    return this.createInvite(ownerId, email, name);
   }
 
   /**
@@ -436,33 +372,7 @@ export class CleanersService {
   }
 
   /**
-   * Generate a secure temporary password
-   */
-  private generateTempPassword(): string {
-    const length = 12;
-    const charset = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*';
-    let password = '';
-
-    // Ensure at least one of each type
-    password += 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'[Math.floor(Math.random() * 26)];
-    password += 'abcdefghijklmnopqrstuvwxyz'[Math.floor(Math.random() * 26)];
-    password += '0123456789'[Math.floor(Math.random() * 10)];
-    password += '!@#$%^&*'[Math.floor(Math.random() * 8)];
-
-    // Fill the rest randomly
-    for (let i = password.length; i < length; i++) {
-      password += charset[Math.floor(Math.random() * charset.length)];
-    }
-
-    // Shuffle the password
-    return password
-      .split('')
-      .sort(() => Math.random() - 0.5)
-      .join('');
-  }
-
-  /**
-   * Create an invite link for a cleaner to sign up (email/password or Google)
+   * Create an invite link for a cleaner to sign up (Google or email)
    */
   async createInvite(ownerId: string, email: string, name?: string) {
     const business = await this.businessService.findByUserId(ownerId);

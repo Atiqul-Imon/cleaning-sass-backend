@@ -142,9 +142,7 @@ export class AuthService {
         throw new Error('Could not send OTP. Please try again later.');
       }
     } else {
-      if (process.env.NODE_ENV === 'development') {
-        console.log('[Auth] WhatsApp not configured. OTP for', phoneE164, ':', otp);
-      }
+      // Do not log OTP - security risk
       throw new Error(
         'WhatsApp OTP is not configured. Set TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_WHATSAPP_FROM.',
       );

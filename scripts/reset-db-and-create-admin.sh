@@ -106,12 +106,9 @@ else
         });
         
         console.log('✅ Admin account created!');
-        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
         console.log('   Email: $ADMIN_EMAIL');
-        console.log('   Password: $ADMIN_PASSWORD');
+        console.log('   Password: (set in script - do not log)');
         console.log('   Role: ADMIN');
-        console.log('   User ID: ' + admin.id);
-        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
       } catch (e) {
         console.error('❌ Error:', e.message);
         process.exit(1);
@@ -125,10 +122,7 @@ fi
 echo ""
 echo "✅ Database reset and admin account creation complete!"
 echo ""
-echo "📋 Admin Credentials:"
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "   Email: $ADMIN_EMAIL"
-echo "   Password: $ADMIN_PASSWORD"
+echo "📋 Admin account created. Email: $ADMIN_EMAIL (password set in script)"
 echo "   Role: ADMIN"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""

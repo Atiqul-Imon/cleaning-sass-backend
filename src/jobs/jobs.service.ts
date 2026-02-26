@@ -3,7 +3,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { Prisma } from '@prisma/client';
 import { BusinessService } from '../business/business.service';
 import { WhatsAppService } from '../whatsapp/whatsapp.service';
-import { CreateJobDto, UpdateJobDto, JobType, JobStatus } from './dto/job.dto';
+import { CreateJobDto, UpdateJobDto, JobType } from './dto/job.dto';
 import { JobsRepository } from './repositories/jobs.repository';
 import { IJobsService } from './interfaces/jobs.service.interface';
 import { JobEntity, JobWithRelations } from './entities/job.entity';
@@ -24,68 +24,38 @@ export class JobsService implements IJobsService {
   ) {}
 
   async create(userId: string, data: CreateJobDto) {
-    const startTime = Date.now();
-    console.log('='.repeat(80));
-    console.log('[JOB CREATION] Starting job creation process');
-    console.log('[JOB CREATION] User ID:', userId);
-    console.log('[JOB CREATION] Job data received:', JSON.stringify(data, null, 2));
-
     try {
-      // Step 1: Get business
-      console.log('[JOB CREATION] Step 1: Fetching business for user...');
       const business = await this.businessService.findByUserId(userId);
       if (!business) {
-        console.error('[JOB CREATION] ❌ Business not found for user:', userId);
         throw new NotFoundException('Business not found. Please complete business setup first.');
       }
-      console.log('[JOB CREATION] ✅ Business found:', {
-        id: business.id,
-        name: business.name,
-        userId: business.userId,
-      });
 
-      // Step 2: Validate client exists
-      console.log('[JOB CREATION] Step 2: Validating client...');
       const client = await this.prisma.client.findUnique({
         where: { id: data.clientId },
         select: { id: true, name: true, businessId: true },
       });
 
       if (!client) {
-        console.error('[JOB CREATION] ❌ Client not found:', data.clientId);
         throw new NotFoundException(`Client with ID ${data.clientId} not found`);
       }
 
       if (client.businessId !== business.id) {
-        console.error('[JOB CREATION] ❌ Client does not belong to business:', {
-          clientBusinessId: client.businessId,
-          userBusinessId: business.id,
-        });
         throw new ForbiddenException('Client does not belong to your business');
       }
-      console.log('[JOB CREATION] ✅ Client validated:', { id: client.id, name: client.name });
 
-      // Step 3: Handle cleaner assignment - if not provided, assign owner
       let cleanerId = data.cleanerId;
-      console.log('[JOB CREATION] Step 3: Processing cleaner assignment...');
       if (!cleanerId) {
-        console.log('[JOB CREATION] No cleaner provided, assigning owner as cleaner');
         cleanerId = userId;
-        console.log('[JOB CREATION] ✅ Owner assigned as cleaner:', userId);
       } else {
-        // Validate cleaner exists and belongs to business
-        console.log('[JOB CREATION] Validating provided cleaner...');
         const cleaner = await this.prisma.user.findUnique({
           where: { id: cleanerId },
           select: { id: true, email: true, role: true },
         });
 
         if (!cleaner) {
-          console.error('[JOB CREATION] ❌ Cleaner not found:', cleanerId);
           throw new NotFoundException(`Cleaner with ID ${cleanerId} not found`);
         }
 
-        // Check if cleaner is assigned to this business
         const businessCleaner = await this.prisma.businessCleaner.findFirst({
           where: {
             cleanerId,
@@ -95,25 +65,12 @@ export class JobsService implements IJobsService {
         });
 
         if (!businessCleaner && cleaner.role !== 'OWNER') {
-          console.error('[JOB CREATION] ❌ Cleaner not assigned to business:', {
-            cleanerId,
-            businessId: business.id,
-          });
           throw new ForbiddenException('Cleaner is not assigned to your business');
         }
-
-        console.log('[JOB CREATION] ✅ Cleaner validated:', {
-          id: cleaner.id,
-          email: cleaner.email,
-          role: cleaner.role,
-        });
       }
 
-      // Step 4: Prepare job data
-      console.log('[JOB CREATION] Step 4: Preparing job data...');
       const scheduledDate = new Date(data.scheduledDate);
       if (isNaN(scheduledDate.getTime())) {
-        console.error('[JOB CREATION] ❌ Invalid scheduled date:', data.scheduledDate);
         throw new Error('Invalid scheduled date format');
       }
 
@@ -129,10 +86,6 @@ export class JobsService implements IJobsService {
         reminderTime: data.reminderTime || '1 day',
       };
 
-      console.log('[JOB CREATION] Job data prepared:', JSON.stringify(jobData, null, 2));
-
-      // Step 5: Create job
-      console.log('[JOB CREATION] Step 5: Creating job in database...');
       const job = await this.prisma.job.create({
         data: jobData,
         include: {
@@ -141,21 +94,7 @@ export class JobsService implements IJobsService {
         },
       });
 
-      const duration = Date.now() - startTime;
-      console.log('[JOB CREATION] ✅ Job created successfully!');
-      console.log('[JOB CREATION] Job details:', {
-        id: job.id,
-        client: job.client.name,
-        cleaner: job.cleaner?.email || 'Owner',
-        scheduledDate: job.scheduledDate,
-        status: job.status,
-      });
-      console.log('[JOB CREATION] Duration:', `${duration}ms`);
-      console.log('='.repeat(80));
-
-      // Step 6: Handle recurring jobs if needed
       if (data.type === JobType.RECURRING && data.frequency) {
-        console.log('[JOB CREATION] Step 6: Creating recurring jobs...');
         try {
           const scheduledDate = new Date(data.scheduledDate);
           const recurringJobsData = this.jobDomainService.generateRecurringJobs(
@@ -170,45 +109,19 @@ export class JobsService implements IJobsService {
             reminderSent: j.reminderSent ?? false,
           }));
           await this.prisma.job.createMany({ data: cleanData });
-          console.log('[JOB CREATION] ✅ Created', cleanData.length, 'recurring jobs');
-        } catch (recurringError) {
-          console.error('[JOB CREATION] ⚠️ Error creating recurring jobs:', recurringError);
+        } catch {
           // Don't fail the main job creation if recurring jobs fail
         }
       }
 
       return job;
     } catch (error) {
-      const duration = Date.now() - startTime;
-      console.error('='.repeat(80));
-      console.error('[JOB CREATION] ❌ ERROR: Job creation failed');
-      console.error(
-        '[JOB CREATION] Error type:',
-        error instanceof Error ? error.constructor.name : typeof error,
-      );
-      console.error(
-        '[JOB CREATION] Error message:',
-        error instanceof Error ? error.message : String(error),
-      );
-      console.error(
-        '[JOB CREATION] Error stack:',
-        error instanceof Error ? error.stack : 'No stack trace',
-      );
-      console.error('[JOB CREATION] Context:', {
-        userId,
-        clientId: data.clientId,
-        cleanerId: data.cleanerId,
-        type: data.type,
-        scheduledDate: data.scheduledDate,
-        duration: `${duration}ms`,
-      });
-      console.error(
-        '[JOB CREATION] Full error object:',
-        JSON.stringify(error, Object.getOwnPropertyNames(error), 2),
-      );
-      console.error('='.repeat(80));
-
-      // Re-throw the error so it can be handled by the controller
+      if (process.env.NODE_ENV === 'development') {
+        console.error(
+          '[JOB CREATION] Error:',
+          error instanceof Error ? error.message : String(error),
+        );
+      }
       throw error;
     }
   }
@@ -217,24 +130,15 @@ export class JobsService implements IJobsService {
 
   async findAll(
     userId: string,
-    userRole?: string,
+    userRole?: 'OWNER' | 'CLEANER' | 'ADMIN',
     pagination?: { page?: number; limit?: number },
-  ): Promise<{ data: JobWithRelations[]; pagination?: any } | JobWithRelations[]> {
-    const startTime = Date.now();
-    console.log('='.repeat(80));
-    console.log('[JOBS FINDALL] Starting findAll operation');
-    console.log('[JOBS FINDALL] User ID:', userId);
-    console.log('[JOBS FINDALL] User Role:', userRole);
-    console.log('[JOBS FINDALL] Pagination:', pagination);
-
+  ): Promise<
+    { data: JobWithRelations[]; pagination?: Record<string, unknown> } | JobWithRelations[]
+  > {
     try {
-      // Use getBusinessIdOrNull to gracefully handle missing business
-      console.log('[JOBS FINDALL] Step 1: Getting business ID...');
-      const businessId = await this.businessIdService.getBusinessIdOrNull(userId, userRole as any);
+      const businessId = await this.businessIdService.getBusinessIdOrNull(userId, userRole);
 
-      // If no business found, return empty result
       if (!businessId) {
-        console.log('[JOBS FINDALL] ⚠️ No business found, returning empty result');
         const emptyResult = pagination
           ? {
               data: [],
@@ -248,19 +152,13 @@ export class JobsService implements IJobsService {
               },
             }
           : [];
-        console.log('[JOBS FINDALL] ✅ Returning empty result');
-        console.log('='.repeat(80));
         return emptyResult;
       }
 
-      console.log('[JOBS FINDALL] ✅ Business ID found:', businessId);
-
       const whereClause: Prisma.JobWhereInput = { businessId };
 
-      // Cleaners only see jobs assigned to them
       if (userRole === 'CLEANER') {
         whereClause.cleanerId = userId;
-        console.log('[JOBS FINDALL] Filtering jobs for cleaner:', userId);
       }
 
       // If pagination is explicitly requested (query params provided), return paginated response
@@ -293,44 +191,15 @@ export class JobsService implements IJobsService {
         };
       }
 
-      // Return all results (backward compatibility) - always return as array
-      console.log('[JOBS FINDALL] Step 3: Fetching all jobs...');
       const allJobs = await this.jobsRepository.findAllWithRelations(whereClause);
-      const duration = Date.now() - startTime;
-      console.log('[JOBS FINDALL] ✅ Successfully fetched', allJobs.length, 'jobs');
-      console.log('[JOBS FINDALL] Duration:', `${duration}ms`);
-      console.log('='.repeat(80));
       return { data: allJobs };
     } catch (error) {
-      const duration = Date.now() - startTime;
-      // Log error for debugging
-      console.error('='.repeat(80));
-      console.error('[JOBS FINDALL] ❌ ERROR: Failed to fetch jobs');
-      console.error(
-        '[JOBS FINDALL] Error type:',
-        error instanceof Error ? error.constructor.name : typeof error,
-      );
-      console.error(
-        '[JOBS FINDALL] Error message:',
-        error instanceof Error ? error.message : String(error),
-      );
-      console.error(
-        '[JOBS FINDALL] Error stack:',
-        error instanceof Error ? error.stack : 'No stack trace',
-      );
-      console.error('[JOBS FINDALL] Context:', {
-        userId,
-        userRole,
-        pagination,
-        duration: `${duration}ms`,
-      });
-      console.error(
-        '[JOBS FINDALL] Full error:',
-        JSON.stringify(error, Object.getOwnPropertyNames(error), 2),
-      );
-      console.error('='.repeat(80));
-
-      // If business doesn't exist yet or any other error, return empty array
+      if (process.env.NODE_ENV === 'development') {
+        console.error(
+          '[JOBS FINDALL] Error:',
+          error instanceof Error ? error.message : String(error),
+        );
+      }
       // Check if pagination was requested to return correct format
       const hasPaginationParams =
         pagination &&
@@ -534,16 +403,6 @@ export class JobsService implements IJobsService {
         },
       });
 
-      // Log job completion
-      if (status === JobStatus.COMPLETED) {
-        console.log('[JOB COMPLETION] ✅ Job completed by cleaner');
-        console.log('[JOB COMPLETION] Job ID:', jobId);
-        console.log('[JOB COMPLETION] Client:', updatedJob.client.name);
-        console.log('[JOB COMPLETION] Cleaner:', updatedJob.cleaner?.email || 'Owner');
-        console.log('[JOB COMPLETION] Scheduled Date:', updatedJob.scheduledDate);
-        console.log('[JOB COMPLETION] Next steps: Owner can now create an invoice for this job');
-      }
-
       return updatedJob;
     }
 
@@ -588,16 +447,6 @@ export class JobsService implements IJobsService {
       },
     });
 
-    // Log job completion by owner
-    if (data.status === JobStatus.COMPLETED) {
-      console.log('[JOB COMPLETION] ✅ Job completed by owner');
-      console.log('[JOB COMPLETION] Job ID:', jobId);
-      console.log('[JOB COMPLETION] Client:', updatedJob.client.name);
-      console.log('[JOB COMPLETION] Completed by:', updatedJob.cleaner?.email || 'Owner (self)');
-      console.log('[JOB COMPLETION] Scheduled Date:', updatedJob.scheduledDate);
-      console.log('[JOB COMPLETION] Next steps: Owner can now create an invoice for this job');
-    }
-
     return updatedJob;
   }
 
@@ -621,15 +470,7 @@ export class JobsService implements IJobsService {
     photoType: 'BEFORE' | 'AFTER',
     userRole?: string,
   ): Promise<JobPhotoEntity> {
-    console.log('[JOB PHOTO] Starting photo upload');
-    console.log('[JOB PHOTO] User ID:', userId);
-    console.log('[JOB PHOTO] Job ID:', jobId);
-    console.log('[JOB PHOTO] Photo Type:', photoType);
-    console.log('[JOB PHOTO] Image URL:', imageUrl);
-
     await this.findOne(userId, jobId, userRole); // Verify access
-
-    console.log('[JOB PHOTO] Job verified, creating photo record...');
 
     const photo = await this.prisma.jobPhoto.create({
       data: {
@@ -637,15 +478,6 @@ export class JobsService implements IJobsService {
         imageUrl,
         photoType,
       },
-    });
-
-    console.log('[JOB PHOTO] ✅ Photo saved successfully, ID:', photo.id);
-    console.log('[JOB PHOTO] Photo details:', {
-      id: photo.id,
-      jobId: photo.jobId,
-      photoType: photo.photoType,
-      imageUrl: photo.imageUrl,
-      createdAt: photo.createdAt,
     });
 
     return {
