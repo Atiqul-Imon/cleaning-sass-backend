@@ -140,6 +140,13 @@ export class BusinessService {
               role: true,
             },
           },
+          _count: {
+            select: {
+              cleaners: {
+                where: { status: 'ACTIVE' },
+              },
+            },
+          },
         },
       });
 
