@@ -7,12 +7,25 @@ export class CacheService implements OnModuleInit, OnModuleDestroy {
   private isConnected = false;
 
   async onModuleInit() {
+    // Skip Redis if not configured
+    if (!process.env.REDIS_HOST) {
+      console.log('ℹ️  Redis not configured, caching disabled');
+      return;
+    }
+
     try {
       this.client = createClient({
         socket: {
-          host: process.env.REDIS_HOST || '46.101.37.78',
+          host: process.env.REDIS_HOST,
           port: parseInt(process.env.REDIS_PORT || '6379'),
           connectTimeout: 5000,
+          reconnectStrategy: (retries) => {
+            if (retries > 3) {
+              this.isConnected = false;
+              return false;
+            }
+            return Math.min(retries * 100, 3000);
+          },
         },
         password: process.env.REDIS_PASSWORD,
       });
@@ -27,10 +40,24 @@ export class CacheService implements OnModuleInit, OnModuleDestroy {
         this.isConnected = true;
       });
 
-      await this.client.connect();
+      this.client.on('end', () => {
+        this.isConnected = false;
+      });
+
+      // Connect with timeout - don't block app startup
+      await Promise.race([
+        this.client.connect(),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Connection timeout')), 5000)),
+      ]).catch((error) => {
+        console.warn(
+          'Redis connection failed (cache disabled):',
+          error instanceof Error ? error.message : String(error),
+        );
+        this.isConnected = false;
+      });
     } catch (error) {
       console.warn(
-        'Redis connection failed (cache disabled):',
+        'Redis initialization failed (cache disabled):',
         error instanceof Error ? error.message : String(error),
       );
       this.isConnected = false;
