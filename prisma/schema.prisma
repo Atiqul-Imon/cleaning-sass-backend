@@ -269,8 +269,8 @@ enum PaymentMethod {
 
 enum SubscriptionPlan {
   SOLO // FREE forever, 1 cleaner, 20 jobs/month
-  TEAM // £14.99/mo, up to 15 cleaners, unlimited jobs
-  BUSINESS // £99.99/mo, up to 100 cleaners, unlimited jobs
+  TEAM // £14.99/mo, up to 20 cleaners, unlimited jobs
+  BUSINESS // £99.99/mo, unlimited cleaners, unlimited jobs
 }
 
 enum SubscriptionStatus {

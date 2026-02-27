@@ -362,8 +362,8 @@ export class CleanersService {
     if (action === 'add' && currentCount >= limit) {
       const planNames: Record<string, string> = {
         SOLO: 'Solo (FREE - 1 staff, 20 jobs/mo)',
-        TEAM: 'Team (£14.99/mo - up to 15 staff)',
-        BUSINESS: 'Business (£99.99/mo - up to 100 staff)',
+        TEAM: 'Team (£14.99/mo - up to 20 staff)',
+        BUSINESS: 'Business (£99.99/mo - unlimited staff)',
       };
       throw new BadRequestException(
         `Your ${planNames[planType] || planType} plan allows up to ${limit} staff. Upgrade your plan to add more cleaners.`,

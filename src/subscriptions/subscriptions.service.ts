@@ -186,11 +186,11 @@ export class SubscriptionsService {
   getCleanerLimit(planType: string): number {
     switch (planType) {
       case 'SOLO':
-        return 1;
+        return 1; // Solo: 1 staff, FREE
       case 'TEAM':
-        return 15;
+        return 20; // Team: £14.99/mo, up to 20 staff
       case 'BUSINESS':
-        return 100;
+        return 1000; // Business: £99.99/mo, unlimited staff (soft limit: 1000)
       default:
         return 1;
     }
