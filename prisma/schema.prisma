@@ -89,6 +89,7 @@ model Client {
 
   @@index([businessId])
   @@index([createdAt])
+  @@index([businessId, createdAt])
   @@map("clients")
 }
 
@@ -123,6 +124,8 @@ model Job {
   @@index([businessId, status])
   @@index([businessId, cleanerId])
   @@index([businessId, cleanerId, scheduledDate])
+  @@index([businessId, scheduledDate, status])
+  @@index([cleanerId, status, scheduledDate])
   @@index([createdAt])
   @@index([reminderEnabled, reminderSent, scheduledDate])
   @@map("jobs")
@@ -186,6 +189,7 @@ model Invoice {
   @@index([clientId])
   @@index([status])
   @@index([businessId, status])
+  @@index([businessId, createdAt])
   @@index([createdAt])
   @@index([dueDate])
   @@map("invoices")
