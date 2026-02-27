@@ -19,6 +19,7 @@ import { ReportsModule } from './reports/reports.module';
 import { AdminModule } from './admin/admin.module';
 import { UploadModule } from './upload/upload.module';
 import { UpgradeRequestsModule } from './upgrade-requests/upgrade-requests.module';
+import { CacheModule } from './cache/cache.module';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { UpgradeRequestsModule } from './upgrade-requests/upgrade-requests.modul
       isGlobal: true,
     }),
     ScheduleModule.forRoot(),
+    CacheModule,
     PrismaModule,
     AuthModule,
     BusinessModule,

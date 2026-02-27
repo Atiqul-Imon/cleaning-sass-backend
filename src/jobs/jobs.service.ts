@@ -11,6 +11,7 @@ import { JobPhotoEntity } from './entities/job-photo.entity';
 import { JobChecklistItemEntity } from './entities/job-checklist.entity';
 import { JobDomainService } from './domain/job.domain.service';
 import { BusinessIdDomainService } from '../shared/domain/business-id.domain.service';
+import { CacheService } from '../cache/cache.service';
 
 @Injectable()
 export class JobsService implements IJobsService {
@@ -21,9 +22,11 @@ export class JobsService implements IJobsService {
     private whatsappService: WhatsAppService,
     private jobDomainService: JobDomainService,
     private businessIdService: BusinessIdDomainService,
+    private cacheService: CacheService,
   ) {}
 
   async create(userId: string, data: CreateJobDto) {
+    let cleanerId: string | undefined;
     try {
       const business = await this.businessService.findByUserId(userId);
       if (!business) {
@@ -43,7 +46,7 @@ export class JobsService implements IJobsService {
         throw new ForbiddenException('Client does not belong to your business');
       }
 
-      let cleanerId = data.cleanerId;
+      cleanerId = data.cleanerId;
       if (!cleanerId) {
         cleanerId = userId;
       } else {
@@ -123,6 +126,20 @@ export class JobsService implements IJobsService {
         );
       }
       throw error;
+    } finally {
+      // Invalidate dashboard cache after job creation
+      try {
+        const business = await this.businessService.findByUserId(userId);
+        if (business) {
+          await this.cacheService.del(`dashboard:${userId}:OWNER`);
+          // Also invalidate cleaner's cache if assigned
+          if (cleanerId && cleanerId !== userId) {
+            await this.cacheService.del(`dashboard:${cleanerId}:CLEANER`);
+          }
+        }
+      } catch {
+        // Cache invalidation failure shouldn't break job creation
+      }
     }
   }
 
@@ -403,6 +420,13 @@ export class JobsService implements IJobsService {
         },
       });
 
+      // Invalidate cleaner's cache after status update
+      try {
+        await this.cacheService.del(`dashboard:${userId}:CLEANER`);
+      } catch {
+        // Cache invalidation failure shouldn't break job update
+      }
+
       return updatedJob;
     }
 
@@ -447,6 +471,16 @@ export class JobsService implements IJobsService {
       },
     });
 
+    // Invalidate cache after update
+    try {
+      await this.cacheService.del(`dashboard:${userId}:${userRole || 'OWNER'}`);
+      if (updatedJob.cleanerId && updatedJob.cleanerId !== userId) {
+        await this.cacheService.del(`dashboard:${updatedJob.cleanerId}:CLEANER`);
+      }
+    } catch {
+      // Cache invalidation failure shouldn't break job update
+    }
+
     return updatedJob;
   }
 
@@ -460,6 +494,17 @@ export class JobsService implements IJobsService {
     }
 
     await this.jobsRepository.delete(jobId);
+
+    // Invalidate cache after deletion
+    try {
+      await this.cacheService.del(`dashboard:${userId}:${userRole || 'OWNER'}`);
+      if (job.cleanerId && job.cleanerId !== userId) {
+        await this.cacheService.del(`dashboard:${job.cleanerId}:CLEANER`);
+      }
+    } catch {
+      // Cache invalidation failure shouldn't break job deletion
+    }
+
     return job;
   }
 

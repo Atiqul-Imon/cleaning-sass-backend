@@ -3,6 +3,7 @@ import { JobsService } from '../jobs/jobs.service';
 import { InvoicesService } from '../invoices/invoices.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { BusinessService } from '../business/business.service';
+import { CacheService } from '../cache/cache.service';
 
 @Injectable()
 export class DashboardService {
@@ -11,9 +12,22 @@ export class DashboardService {
     private invoicesService: InvoicesService,
     private prisma: PrismaService,
     private businessService: BusinessService,
+    private cacheService: CacheService,
   ) {}
 
   async getStats(userId: string, userRole?: string) {
+    // Cache key based on user ID and role
+    const cacheKey = `dashboard:${userId}:${userRole || 'OWNER'}`;
+
+    // Try to get from cache first (TTL: 2 minutes for dashboard data)
+    return this.cacheService.wrap(
+      cacheKey,
+      async () => this.fetchStats(userId, userRole),
+      2 * 60 * 1000, // 2 minutes TTL
+    );
+  }
+
+  private async fetchStats(userId: string, userRole?: string) {
     try {
       // Only owners see financial stats
       if (userRole === 'OWNER') {

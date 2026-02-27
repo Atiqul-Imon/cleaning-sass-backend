@@ -117,17 +117,16 @@ export class BusinessService {
     include: { user: { select: { id: true; email: true; role: true } } };
   }> | null> {
     try {
-      // Check cache first (request-scoped)
+      // Check cache first
       const cacheKey = `business:userId:${userId}`;
-      if (this.cacheService?.has(cacheKey)) {
-        const cached = this.cacheService.get<
-          Prisma.BusinessGetPayload<{
-            include: { user: { select: { id: true; email: true; role: true } } };
-          }>
-        >(cacheKey);
-        if (cached) {
-          return cached;
-        }
+      const cached = await this.cacheService?.get<
+        Prisma.BusinessGetPayload<{
+          include: { user: { select: { id: true; email: true; role: true } } };
+        }>
+      >(cacheKey);
+
+      if (cached) {
+        return cached;
       }
 
       const business = await this.prisma.business.findUnique({
@@ -154,8 +153,8 @@ export class BusinessService {
         return null;
       }
 
-      // Cache the result for this request
-      this.cacheService?.set(cacheKey, business);
+      // Cache the result (5 minutes TTL for business data)
+      await this.cacheService?.set(cacheKey, business, 5 * 60 * 1000);
 
       return business;
     } catch (error: unknown) {

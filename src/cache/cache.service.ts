@@ -1,56 +1,167 @@
-import { Injectable, Scope } from '@nestjs/common';
+import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
+import { createClient, RedisClientType } from 'redis';
 
-/**
- * Simple in-memory cache service for request-scoped caching
- * This helps avoid repeated database queries within the same request
- */
-@Injectable({ scope: Scope.REQUEST })
-export class CacheService {
-  private cache = new Map<string, { data: unknown; timestamp: number }>();
-  private readonly TTL = 60000; // 1 minute TTL for request cache
+@Injectable()
+export class CacheService implements OnModuleInit, OnModuleDestroy {
+  private client!: RedisClientType;
+  private isConnected = false;
 
-  get<T>(key: string): T | null {
-    const item = this.cache.get(key);
-    if (!item) {
-      return null;
+  async onModuleInit() {
+    try {
+      this.client = createClient({
+        socket: {
+          host: process.env.REDIS_HOST || '46.101.37.78',
+          port: parseInt(process.env.REDIS_PORT || '6379'),
+          connectTimeout: 5000,
+        },
+        password: process.env.REDIS_PASSWORD,
+      });
+
+      this.client.on('error', (err) => {
+        console.warn('Redis Client Error (non-critical):', err.message);
+        this.isConnected = false;
+      });
+
+      this.client.on('connect', () => {
+        console.log('✓ Redis connected successfully');
+        this.isConnected = true;
+      });
+
+      await this.client.connect();
+    } catch (error) {
+      console.warn(
+        'Redis connection failed (cache disabled):',
+        error instanceof Error ? error.message : String(error),
+      );
+      this.isConnected = false;
     }
-
-    // Check if expired
-    if (Date.now() - item.timestamp > this.TTL) {
-      this.cache.delete(key);
-      return null;
-    }
-
-    return item.data as T;
   }
 
-  set<T>(key: string, data: T): void {
-    this.cache.set(key, {
-      data,
-      timestamp: Date.now(),
-    });
+  async onModuleDestroy() {
+    if (this.client) {
+      await this.client.quit();
+    }
   }
 
-  has(key: string): boolean {
-    const item = this.cache.get(key);
-    if (!item) {
-      return false;
+  /**
+   * Get cached value
+   */
+  async get<T>(key: string): Promise<T | undefined> {
+    if (!this.isConnected) {
+      return undefined;
+    }
+    try {
+      const value = await this.client.get(key);
+      return value ? JSON.parse(value) : undefined;
+    } catch (error) {
+      console.warn('Cache get error:', key, error);
+      return undefined;
+    }
+  }
+
+  /**
+   * Set cache value with TTL
+   * @param key Cache key
+   * @param value Value to cache
+   * @param ttl Time to live in milliseconds (default: 5 minutes)
+   */
+  async set(key: string, value: any, ttl?: number): Promise<void> {
+    if (!this.isConnected) {
+      return;
+    }
+    try {
+      const ttlSeconds = Math.floor((ttl || 5 * 60 * 1000) / 1000);
+      await this.client.setEx(key, ttlSeconds, JSON.stringify(value));
+    } catch (error) {
+      console.warn('Cache set error:', key, error);
+    }
+  }
+
+  /**
+   * Delete a single cache key
+   */
+  async del(key: string): Promise<void> {
+    if (!this.isConnected) {
+      return;
+    }
+    try {
+      await this.client.del(key);
+    } catch (error) {
+      console.warn('Cache delete error:', key, error);
+    }
+  }
+
+  /**
+   * Delete multiple cache keys matching a pattern
+   */
+  async delPattern(pattern: string): Promise<void> {
+    if (!this.isConnected) {
+      return;
+    }
+    try {
+      const keys = await this.client.keys(pattern);
+      if (keys.length > 0) {
+        await this.client.del(keys);
+      }
+    } catch (error) {
+      console.warn('Cache pattern delete error:', pattern, error);
+    }
+  }
+
+  /**
+   * Clear all cache
+   */
+  async reset(): Promise<void> {
+    if (!this.isConnected) {
+      return;
+    }
+    try {
+      await this.client.flushDb();
+    } catch (error) {
+      console.warn('Cache reset error:', error);
+    }
+  }
+
+  /**
+   * Wrap a function with caching
+   * If cache exists, return it. Otherwise, execute function and cache result.
+   */
+  async wrap<T>(key: string, fn: () => Promise<T>, ttl?: number): Promise<T> {
+    const cached = await this.get<T>(key);
+    if (cached !== undefined) {
+      return cached;
     }
 
-    // Check if expired
-    if (Date.now() - item.timestamp > this.TTL) {
-      this.cache.delete(key);
-      return false;
+    const result = await fn();
+    await this.set(key, result, ttl);
+    return result;
+  }
+
+  /**
+   * Generate cache key for business-specific data
+   */
+  generateKey(prefix: string, businessId: string, suffix?: string): string {
+    return suffix ? `${prefix}:${businessId}:${suffix}` : `${prefix}:${businessId}`;
+  }
+
+  /**
+   * Invalidate all cache keys for a specific business
+   */
+  async invalidateBusinessCache(businessId: string): Promise<void> {
+    if (!this.isConnected) {
+      return;
     }
+    // Clear common business-related cache patterns
+    const patterns = [
+      `dashboard:*:${businessId}*`,
+      `clients:${businessId}*`,
+      `jobs:${businessId}*`,
+      `invoices:${businessId}*`,
+      `cleaners:${businessId}*`,
+    ];
 
-    return true;
-  }
-
-  delete(key: string): void {
-    this.cache.delete(key);
-  }
-
-  clear(): void {
-    this.cache.clear();
+    for (const pattern of patterns) {
+      await this.delPattern(pattern);
+    }
   }
 }
