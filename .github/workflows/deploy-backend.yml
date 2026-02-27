@@ -5,7 +5,11 @@ on:
     branches:
       - main
     paths:
-      - 'backend/**'
+      - 'src/**'
+      - 'prisma/**'
+      - 'Dockerfile'
+      - 'package.json'
+      - 'docker-compose.prod.yml'
       - '.github/workflows/deploy-backend.yml'
   workflow_dispatch:
 
@@ -48,8 +52,8 @@ jobs:
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
-          context: ./backend
-          file: ./backend/Dockerfile
+          context: .
+          file: ./Dockerfile
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
@@ -73,8 +77,8 @@ jobs:
           username: ${{ secrets.DO_USER }}
           key: ${{ secrets.DO_SSH_KEY }}
           port: ${{ secrets.DO_PORT || 22 }}
-          source: "backend/docker-compose.prod.yml,backend/prisma"
-          target: "/opt/fieldneat-backend"
+          source: "docker-compose.prod.yml,prisma"
+          target: "/opt/fieldneat-backend/backend"
 
       - name: Deploy to Digital Ocean
         uses: appleboy/ssh-action@v1.0.3
