@@ -68,7 +68,9 @@ export class JobsController {
   ) {
     try {
       const userRole = (req as Request & { role?: 'OWNER' | 'CLEANER' | 'ADMIN' }).role || 'OWNER';
-      return await this.jobsService.findAll(user.id, userRole, pagination);
+      console.log('[JobsController.findAll] Query params:', req.query);
+      console.log('[JobsController.findAll] Pagination DTO:', pagination);
+      return await this.jobsService.findAll(user.id, userRole, pagination as any);
     } catch (error) {
       if (process.env.NODE_ENV === 'development') {
         console.error(

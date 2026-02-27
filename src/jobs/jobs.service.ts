@@ -148,14 +148,17 @@ export class JobsService implements IJobsService {
   async findAll(
     userId: string,
     userRole?: 'OWNER' | 'CLEANER' | 'ADMIN',
-    pagination?: { page?: number; limit?: number },
+    pagination?: { page?: number; limit?: number; status?: string },
   ): Promise<
     { data: JobWithRelations[]; pagination?: Record<string, unknown> } | JobWithRelations[]
   > {
     try {
       const businessId = await this.businessIdService.getBusinessIdOrNull(userId, userRole);
 
+      console.log(`[findAll] userId: ${userId}, role: ${userRole}, businessId: ${businessId}`);
+
       if (!businessId) {
+        console.log('[findAll] No business found, returning empty');
         const emptyResult = pagination
           ? {
               data: [],
@@ -178,6 +181,13 @@ export class JobsService implements IJobsService {
         whereClause.cleanerId = userId;
       }
 
+      // Add status filter if provided
+      if (pagination?.status) {
+        whereClause.status = pagination.status as any;
+      }
+
+      console.log('[findAll] whereClause:', JSON.stringify(whereClause));
+
       // If pagination is explicitly requested (query params provided), return paginated response
       // Check if pagination object exists and has explicit values (not just defaults)
       const hasPaginationParams =
@@ -195,6 +205,8 @@ export class JobsService implements IJobsService {
           this.jobsRepository.count(whereClause),
         ]);
 
+        console.log(`[findAll] Paginated: Found ${data.length} jobs out of ${total} total`);
+
         return {
           data,
           pagination: {
@@ -209,8 +221,10 @@ export class JobsService implements IJobsService {
       }
 
       const allJobs = await this.jobsRepository.findAllWithRelations(whereClause);
+      console.log(`[findAll] Non-paginated: Found ${allJobs.length} jobs`);
       return { data: allJobs };
     } catch (error) {
+      console.error('[findAll] Error:', error);
       if (process.env.NODE_ENV === 'development') {
         console.error(
           '[JOBS FINDALL] Error:',
