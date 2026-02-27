@@ -4,11 +4,14 @@ on:
   push:
     branches:
       - main
+    paths:
+      - 'backend/**'
+      - '.github/workflows/deploy-backend.yml'
   workflow_dispatch:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository_owner }}/${{ github.event.repository.name }}/backend
+  IMAGE_NAME: ${{ github.repository }}/backend
 
 jobs:
   build-and-push:
@@ -41,13 +44,12 @@ jobs:
             type=ref,event=branch
             type=sha,prefix={{branch}}-
             type=raw,value=latest,enable={{is_default_branch}}
-          transform-docker-tag: lowercase
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
-          context: .
-          file: ./Dockerfile
+          context: ./backend
+          file: ./backend/Dockerfile
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
@@ -64,15 +66,15 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Sync prisma and docker-compose to server
+      - name: Sync config and migrations to server
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.DO_HOST }}
           username: ${{ secrets.DO_USER }}
           key: ${{ secrets.DO_SSH_KEY }}
           port: ${{ secrets.DO_PORT || 22 }}
-          source: "prisma,docker-compose.prod.yml"
-          target: "/opt/fieldneat-backend/backend"
+          source: "backend/docker-compose.prod.yml,backend/prisma"
+          target: "/opt/fieldneat-backend"
 
       - name: Deploy to Digital Ocean
         uses: appleboy/ssh-action@v1.0.3
@@ -81,9 +83,6 @@ jobs:
           username: ${{ secrets.DO_USER }}
           key: ${{ secrets.DO_SSH_KEY }}
           port: ${{ secrets.DO_PORT || 22 }}
-          timeout: 30s
-          command_timeout: 10m
-          debug: true
           script: |
             set -e
             
@@ -92,9 +91,8 @@ jobs:
             # Navigate to project directory
             cd /opt/fieldneat-backend/backend || { echo "❌ Directory not found. Please run initial setup first."; exit 1; }
             
-            # Set GITHUB_REPOSITORY for docker-compose (lowercase for Docker)
+            # Set GITHUB_REPOSITORY for docker-compose
             export GITHUB_REPOSITORY="${{ github.repository }}"
-            export DOCKER_IMAGE_NAME=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')/backend
             
             # Login to GitHub Container Registry
             # Use GHCR_TOKEN if provided, otherwise fall back to GITHUB_TOKEN
@@ -111,44 +109,24 @@ jobs:
             fi
             
             echo "📦 Pulling latest Docker image..."
-            docker pull ${{ env.REGISTRY }}/$DOCKER_IMAGE_NAME:latest || {
+            docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest || {
               echo "❌ Failed to pull Docker image"
               exit 1
             }
             
-            echo "🛑 Stopping existing containers..."
+            echo "🛑 Stopping existing containers (prod + any local build)..."
             docker compose -f docker-compose.prod.yml down || true
             docker stop cleaning-saas-backend 2>/dev/null || true
             docker rm cleaning-saas-backend 2>/dev/null || true
             
+            export BACKEND_IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest"
+            
             echo "🔄 Running database migrations..."
-            # Verify .env file exists and has DATABASE_URL
-            if [ ! -f .env ]; then
-              echo "❌ .env file not found"
-              exit 1
-            fi
-            
-            if ! grep -q "^DATABASE_URL=" .env; then
-              echo "❌ DATABASE_URL not found in .env file"
-              exit 1
-            fi
-            
-            # Extract DATABASE_URL from .env (handling quotes if present)
-            DATABASE_URL_VALUE=$(grep "^DATABASE_URL=" .env | head -1 | cut -d'=' -f2- | sed 's/^"//; s/"$//')
-            
-            # Verify DATABASE_URL format
-            if [[ ! "$DATABASE_URL_VALUE" =~ ^postgres ]]; then
-              echo "❌ DATABASE_URL format invalid (must start with postgres:// or postgresql://)"
-              echo "   Current value starts with: ${DATABASE_URL_VALUE:0:20}..."
-              exit 1
-            fi
-            
-            # Run migrations with explicit DATABASE_URL
             docker run --rm \
-              -e DATABASE_URL="$DATABASE_URL_VALUE" \
+              --env-file .env \
               -v $(pwd)/prisma:/app/prisma \
               -w /app \
-              ${{ env.REGISTRY }}/$DOCKER_IMAGE_NAME:latest \
+              $BACKEND_IMAGE \
               sh -c "npm install && npx prisma migrate deploy" || {
               echo "❌ Database migration failed"
               exit 1
@@ -165,7 +143,7 @@ jobs:
             sleep 10
             
             # Check container status
-            CONTAINER_STATUS=$(docker inspect fieldneat-backend --format='{{.State.Status}}' 2>/dev/null || echo "not-found")
+            CONTAINER_STATUS=$(docker inspect clenvora-backend --format='{{.State.Status}}' 2>/dev/null || echo "not-found")
             if [ "$CONTAINER_STATUS" != "running" ]; then
               echo "❌ Container is not running. Status: $CONTAINER_STATUS"
               docker compose -f docker-compose.prod.yml logs --tail=50
