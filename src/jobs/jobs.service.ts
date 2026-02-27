@@ -278,20 +278,23 @@ export class JobsService implements IJobsService {
       }
     }
 
-    // Use UTC to match how scheduledDate is stored (YYYY-MM-DD -> UTC midnight)
-    // Avoids timezone mismatch where server local "today" excludes jobs
+    // Get today's date range - use simple date comparison
     const now = new Date();
-    const todayStart = new Date(
-      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 0, 0, 0, 0),
+    const todayStr = now.toISOString().split('T')[0]; // YYYY-MM-DD format
+
+    // Get start and end of today in local timezone
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+    const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+
+    console.log(
+      `[findToday] Looking for jobs on: ${todayStr}, range: ${todayStart.toISOString()} to ${todayEnd.toISOString()}`,
     );
-    const todayEnd = new Date(todayStart);
-    todayEnd.setUTCDate(todayEnd.getUTCDate() + 1);
 
     const whereClause: Prisma.JobWhereInput = {
       businessId,
       scheduledDate: {
         gte: todayStart,
-        lt: todayEnd,
+        lte: todayEnd,
       },
     };
 
