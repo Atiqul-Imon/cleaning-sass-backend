@@ -1,6 +1,6 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsInt, Min, Max, IsOptional } from 'class-validator';
+import { IsInt, Min, Max, IsOptional, IsString } from 'class-validator';
 
 /**
  * Pagination query parameters DTO
@@ -31,6 +31,14 @@ export class PaginationDto {
   @Min(1)
   @Max(100)
   limit?: number;
+
+  @ApiPropertyOptional({
+    description: 'Filter by status',
+    example: 'SCHEDULED',
+  })
+  @IsOptional()
+  @IsString()
+  status?: string;
 
   /**
    * Calculate skip value for Prisma queries
