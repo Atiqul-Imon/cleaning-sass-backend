@@ -95,8 +95,9 @@ jobs:
             # Navigate to project directory
             cd /opt/fieldneat-backend/backend || { echo "❌ Directory not found. Please run initial setup first."; exit 1; }
             
-            # Set GITHUB_REPOSITORY for docker-compose
+            # Set GITHUB_REPOSITORY for docker-compose (lowercase for Docker)
             export GITHUB_REPOSITORY="${{ github.repository }}"
+            export DOCKER_IMAGE_NAME=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')/backend
             
             # Login to GitHub Container Registry
             # Use GHCR_TOKEN if provided, otherwise fall back to GITHUB_TOKEN
@@ -113,24 +114,44 @@ jobs:
             fi
             
             echo "📦 Pulling latest Docker image..."
-            docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest || {
+            docker pull ghcr.io/$DOCKER_IMAGE_NAME:latest || {
               echo "❌ Failed to pull Docker image"
               exit 1
             }
             
-            echo "🛑 Stopping existing containers (prod + any local build)..."
+            echo "🛑 Stopping existing containers..."
             docker compose -f docker-compose.prod.yml down || true
             docker stop cleaning-saas-backend 2>/dev/null || true
             docker rm cleaning-saas-backend 2>/dev/null || true
             
-            export BACKEND_IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest"
-            
             echo "🔄 Running database migrations..."
+            # Verify .env file exists and has DATABASE_URL
+            if [ ! -f .env ]; then
+              echo "❌ .env file not found"
+              exit 1
+            fi
+            
+            if ! grep -q "^DATABASE_URL=" .env; then
+              echo "❌ DATABASE_URL not found in .env file"
+              exit 1
+            fi
+            
+            # Extract DATABASE_URL from .env (handling quotes if present)
+            DATABASE_URL_VALUE=$(grep "^DATABASE_URL=" .env | head -1 | cut -d'=' -f2- | sed 's/^"//; s/"$//')
+            
+            # Verify DATABASE_URL format
+            if [[ ! "$DATABASE_URL_VALUE" =~ ^postgres ]]; then
+              echo "❌ DATABASE_URL format invalid (must start with postgres:// or postgresql://)"
+              echo "   Current value starts with: ${DATABASE_URL_VALUE:0:20}..."
+              exit 1
+            fi
+            
+            # Run migrations with explicit DATABASE_URL
             docker run --rm \
-              --env-file .env \
+              -e DATABASE_URL="$DATABASE_URL_VALUE" \
               -v $(pwd)/prisma:/app/prisma \
               -w /app \
-              $BACKEND_IMAGE \
+              ghcr.io/$DOCKER_IMAGE_NAME:latest \
               sh -c "npm install && npx prisma migrate deploy" || {
               echo "❌ Database migration failed"
               exit 1
