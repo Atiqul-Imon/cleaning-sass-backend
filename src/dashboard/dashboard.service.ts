@@ -14,14 +14,16 @@ export class DashboardService {
   ) {}
 
   async getStats(userId: string, userRole?: string) {
-    let todayJobs: any[] = [];
     try {
-      todayJobs = await this.jobsService.findToday(userId, userRole);
-
       // Only owners see financial stats
       if (userRole === 'OWNER') {
         try {
-          const business = await this.businessService.findByUserId(userId);
+          // Fetch business and today's jobs in parallel
+          const [business, todayJobs] = await Promise.all([
+            this.businessService.findByUserId(userId),
+            this.jobsService.findToday(userId, userRole).catch(() => []),
+          ]);
+
           if (!business) {
             return {
               todayJobs: todayJobs.length,
@@ -40,14 +42,12 @@ export class DashboardService {
             };
           }
 
+          const now = new Date();
           const [unpaidCount, monthlyEarnings] = await Promise.all([
             this.invoicesService.getUnpaidCount(userId).catch(() => 0),
-            (async () => {
-              const now = new Date();
-              return this.invoicesService
-                .getMonthlyEarnings(userId, now.getMonth() + 1, now.getFullYear())
-                .catch(() => 0);
-            })(),
+            this.invoicesService
+              .getMonthlyEarnings(userId, now.getMonth() + 1, now.getFullYear())
+              .catch(() => 0),
           ]);
 
           const today = new Date();
@@ -68,66 +68,45 @@ export class DashboardService {
             totalClients,
             totalInvoices,
           ] = await Promise.all([
-            // Get upcoming jobs (next 30 days, including today) - expanded from 7 to 30 days
-            (async () => {
-              try {
-                console.log('[DASHBOARD] Fetching upcoming jobs...');
-                console.log('[DASHBOARD] Business ID:', business.id);
-                console.log('[DASHBOARD] Date range:', {
-                  from: today.toISOString(),
-                  to: nextMonth.toISOString(),
-                });
-                const jobs = await this.prisma.job.findMany({
-                  where: {
-                    businessId: business.id,
-                    scheduledDate: {
-                      gte: today, // Include today
-                      lte: nextMonth, // Next 30 days
-                    },
-                    status: {
-                      in: ['SCHEDULED', 'IN_PROGRESS'],
+            // Get upcoming jobs (next 30 days, including today)
+            this.prisma.job
+              .findMany({
+                where: {
+                  businessId: business.id,
+                  scheduledDate: {
+                    gte: today,
+                    lte: nextMonth,
+                  },
+                  status: {
+                    in: ['SCHEDULED', 'IN_PROGRESS'],
+                  },
+                },
+                select: {
+                  id: true,
+                  type: true,
+                  scheduledDate: true,
+                  scheduledTime: true,
+                  status: true,
+                  client: {
+                    select: {
+                      id: true,
+                      name: true,
+                      phone: true,
                     },
                   },
-                  select: {
-                    id: true,
-                    type: true,
-                    scheduledDate: true,
-                    scheduledTime: true,
-                    status: true,
-                    client: {
-                      select: {
-                        id: true,
-                        name: true,
-                        phone: true,
-                      },
-                    },
-                    cleaner: {
-                      select: {
-                        id: true,
-                        email: true,
-                      },
+                  cleaner: {
+                    select: {
+                      id: true,
+                      email: true,
                     },
                   },
-                  orderBy: {
-                    scheduledDate: 'asc',
-                  },
-                  take: 10,
-                });
-                console.log('[DASHBOARD] Found', jobs.length, 'upcoming jobs');
-                jobs.forEach((job, i) => {
-                  console.log(`[DASHBOARD] Job ${i + 1}:`, {
-                    id: job.id,
-                    client: job.client?.name,
-                    date: job.scheduledDate,
-                    status: job.status,
-                  });
-                });
-                return jobs;
-              } catch (error) {
-                console.error('[DASHBOARD] Error fetching upcoming jobs:', error);
-                return [];
-              }
-            })(),
+                },
+                orderBy: {
+                  scheduledDate: 'asc',
+                },
+                take: 10,
+              })
+              .catch(() => []),
             // Get in-progress jobs
             this.prisma.job
               .findMany({
@@ -259,14 +238,6 @@ export class DashboardService {
               .catch(() => 0),
           ]);
 
-          console.log('[DASHBOARD] Returning stats:', {
-            todayJobs: todayJobs.length,
-            upcomingJobs: upcomingJobs.length,
-            inProgressJobs: inProgressJobs.length,
-            recentJobs: recentJobs.length,
-            totalJobs,
-          });
-
           return {
             todayJobs: todayJobs.length,
             monthlyEarnings,
@@ -286,10 +257,10 @@ export class DashboardService {
           console.error('Error fetching owner dashboard stats:', error);
           // Return minimal data on error
           return {
-            todayJobs: todayJobs.length,
+            todayJobs: 0,
             monthlyEarnings: 0,
             unpaidInvoices: 0,
-            todayJobsList: todayJobs,
+            todayJobsList: [],
             role: 'OWNER',
             recentJobs: [],
             upcomingJobs: [],
@@ -304,124 +275,148 @@ export class DashboardService {
       }
 
       // Cleaners see limited stats + business info
-      let businesses: any[] = [];
-      let upcomingJobs: any[] = [];
-      let inProgressJobs: any[] = [];
-      let completedThisWeek: number = 0;
-
       if (userRole === 'CLEANER') {
-        // Get cleaner's business from BusinessCleaner
-        const businessCleaners = await this.prisma.businessCleaner.findMany({
-          where: {
-            cleanerId: userId,
-            status: 'ACTIVE',
-          },
-          include: {
-            business: {
-              select: {
-                id: true,
-                name: true,
-                phone: true,
-                address: true,
+        // Get cleaner's businesses and today's jobs in parallel
+        const [businessCleaners, todayJobs] = await Promise.all([
+          this.prisma.businessCleaner.findMany({
+            where: {
+              cleanerId: userId,
+              status: 'ACTIVE',
+            },
+            include: {
+              business: {
+                select: {
+                  id: true,
+                  name: true,
+                  phone: true,
+                  address: true,
+                },
               },
             },
-          },
-        });
+          }),
+          this.jobsService.findToday(userId, userRole).catch(() => []),
+        ]);
 
-        businesses = businessCleaners.map((bc) => bc.business);
+        const businesses = businessCleaners.map((bc) => bc.business);
 
         if (businessCleaners.length > 0) {
           const businessId = businessCleaners[0].businessId;
-
-          // Get upcoming jobs (next 7 days)
           const today = new Date();
           today.setHours(0, 0, 0, 0);
           const nextWeek = new Date(today);
           nextWeek.setDate(nextWeek.getDate() + 7);
-
-          upcomingJobs = await this.prisma.job.findMany({
-            where: {
-              businessId,
-              cleanerId: userId,
-              scheduledDate: {
-                gte: today, // Include today
-                lte: nextWeek,
-              },
-              status: {
-                in: ['SCHEDULED', 'IN_PROGRESS'],
-              },
-            },
-            select: {
-              id: true,
-              type: true,
-              scheduledDate: true,
-              scheduledTime: true,
-              status: true,
-              client: {
-                select: {
-                  id: true,
-                  name: true,
-                },
-              },
-            },
-            orderBy: {
-              scheduledDate: 'asc',
-            },
-            take: 5, // Limit to 5 upcoming jobs
-          });
-
-          // Get in-progress jobs
-          inProgressJobs = await this.prisma.job.findMany({
-            where: {
-              businessId,
-              cleanerId: userId,
-              status: 'IN_PROGRESS',
-            },
-            select: {
-              id: true,
-              type: true,
-              scheduledDate: true,
-              scheduledTime: true,
-              status: true,
-              client: {
-                select: {
-                  id: true,
-                  name: true,
-                },
-              },
-            },
-            orderBy: {
-              scheduledDate: 'asc',
-            },
-          });
-
-          // Get completed jobs this week
           const weekStart = new Date(today);
-          weekStart.setDate(weekStart.getDate() - weekStart.getDay()); // Start of week (Sunday)
+          weekStart.setDate(weekStart.getDate() - weekStart.getDay());
 
-          completedThisWeek = await this.prisma.job.count({
-            where: {
-              businessId,
-              cleanerId: userId,
-              status: 'COMPLETED',
-              updatedAt: {
-                gte: weekStart,
+          // Get all cleaner data in parallel
+          const [upcomingJobs, inProgressJobs, completedThisWeek] = await Promise.all([
+            this.prisma.job.findMany({
+              where: {
+                businessId,
+                cleanerId: userId,
+                scheduledDate: {
+                  gte: today,
+                  lte: nextWeek,
+                },
+                status: {
+                  in: ['SCHEDULED', 'IN_PROGRESS'],
+                },
               },
-            },
-          });
+              select: {
+                id: true,
+                type: true,
+                scheduledDate: true,
+                scheduledTime: true,
+                status: true,
+                client: {
+                  select: {
+                    id: true,
+                    name: true,
+                  },
+                },
+              },
+              orderBy: {
+                scheduledDate: 'asc',
+              },
+              take: 5,
+            }),
+            this.prisma.job.findMany({
+              where: {
+                businessId,
+                cleanerId: userId,
+                status: 'IN_PROGRESS',
+              },
+              select: {
+                id: true,
+                type: true,
+                scheduledDate: true,
+                scheduledTime: true,
+                status: true,
+                client: {
+                  select: {
+                    id: true,
+                    name: true,
+                  },
+                },
+              },
+              orderBy: {
+                scheduledDate: 'asc',
+              },
+            }),
+            this.prisma.job.count({
+              where: {
+                businessId,
+                cleanerId: userId,
+                status: 'COMPLETED',
+                updatedAt: {
+                  gte: weekStart,
+                },
+              },
+            }),
+          ]);
+
+          return {
+            todayJobs: todayJobs.length,
+            monthlyEarnings: 0,
+            unpaidInvoices: 0,
+            todayJobsList: todayJobs,
+            role: 'CLEANER',
+            businesses,
+            upcomingJobs,
+            inProgressJobs,
+            completedThisWeek,
+          };
         }
+
+        return {
+          todayJobs: todayJobs.length,
+          monthlyEarnings: 0,
+          unpaidInvoices: 0,
+          todayJobsList: todayJobs,
+          role: 'CLEANER',
+          businesses,
+          upcomingJobs: [],
+          inProgressJobs: [],
+          completedThisWeek: 0,
+        };
       }
 
+      // Fallback for non-OWNER, non-CLEANER roles
+      const todayJobs = await this.jobsService.findToday(userId, userRole).catch(() => []);
       return {
         todayJobs: todayJobs.length,
         monthlyEarnings: 0,
         unpaidInvoices: 0,
         todayJobsList: todayJobs,
-        role: userRole === 'CLEANER' ? 'CLEANER' : 'OWNER',
-        businesses, // Business(es) the cleaner works for
-        upcomingJobs, // Next 7 days jobs
-        inProgressJobs, // Currently in progress
-        completedThisWeek, // Completed this week count
+        role: userRole || 'OWNER',
+        recentJobs: [],
+        upcomingJobs: [],
+        inProgressJobs: [],
+        recentClients: [],
+        recentInvoices: [],
+        totalJobs: 0,
+        totalClients: 0,
+        totalInvoices: 0,
       };
     } catch (error) {
       console.error('Error in dashboard getStats:', error);
