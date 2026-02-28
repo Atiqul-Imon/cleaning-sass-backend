@@ -127,14 +127,18 @@ export class JobsService implements IJobsService {
       }
       throw error;
     } finally {
-      // Invalidate dashboard cache after job creation
+      // OPTIMIZATION: Invalidate dashboard and jobs cache after job creation
       try {
         const business = await this.businessService.findByUserId(userId);
         if (business) {
+          // Invalidate dashboard cache
           await this.cacheService.del(`dashboard:${userId}:OWNER`);
+          // OPTIMIZATION: Invalidate jobs cache
+          await this.cacheService.delPattern(`jobs:${business.id}*`);
           // Also invalidate cleaner's cache if assigned
           if (cleanerId && cleanerId !== userId) {
             await this.cacheService.del(`dashboard:${cleanerId}:CLEANER`);
+            await this.cacheService.delPattern(`jobs:${business.id}:cleaner:${cleanerId}*`);
           }
         }
       } catch {
@@ -188,41 +192,54 @@ export class JobsService implements IJobsService {
 
       console.log('[findAll] whereClause:', JSON.stringify(whereClause));
 
-      // If pagination is explicitly requested (query params provided), return paginated response
-      // Check if pagination object exists and has explicit values (not just defaults)
+      // OPTIMIZATION: Generate cache key
+      const statusKey = pagination?.status || 'all';
+      const roleKey = userRole === 'CLEANER' ? `cleaner:${userId}` : 'owner';
       const hasPaginationParams =
         pagination &&
         ((pagination.page !== undefined && pagination.page !== null) ||
           (pagination.limit !== undefined && pagination.limit !== null));
 
-      if (hasPaginationParams) {
-        const page = pagination.page || 1;
-        const limit = Math.min(pagination.limit || 20, 100); // Max 100 items per page
-        const skip = (page - 1) * limit;
+      const cacheKey = hasPaginationParams
+        ? `jobs:${businessId}:${roleKey}:${statusKey}:page:${pagination.page || 1}:limit:${pagination.limit || 20}`
+        : `jobs:${businessId}:${roleKey}:${statusKey}:all`;
 
-        const [data, total] = await Promise.all([
-          this.jobsRepository.findAllWithRelations(whereClause, { skip, take: limit }),
-          this.jobsRepository.count(whereClause),
-        ]);
+      // Try to get from cache first (2 minutes TTL for jobs - more dynamic)
+      return await this.cacheService.wrap(
+        cacheKey,
+        async () => {
+          // If pagination is explicitly requested (query params provided), return paginated response
+          if (hasPaginationParams) {
+            const page = pagination.page || 1;
+            const limit = Math.min(pagination.limit || 20, 100); // Max 100 items per page
+            const skip = (page - 1) * limit;
 
-        console.log(`[findAll] Paginated: Found ${data.length} jobs out of ${total} total`);
+            const [data, total] = await Promise.all([
+              this.jobsRepository.findAllWithRelations(whereClause, { skip, take: limit }),
+              this.jobsRepository.count(whereClause),
+            ]);
 
-        return {
-          data,
-          pagination: {
-            page,
-            limit,
-            total,
-            totalPages: Math.ceil(total / limit),
-            hasNext: page * limit < total,
-            hasPrev: page > 1,
-          },
-        };
-      }
+            console.log(`[findAll] Paginated: Found ${data.length} jobs out of ${total} total`);
 
-      const allJobs = await this.jobsRepository.findAllWithRelations(whereClause);
-      console.log(`[findAll] Non-paginated: Found ${allJobs.length} jobs`);
-      return { data: allJobs };
+            return {
+              data,
+              pagination: {
+                page,
+                limit,
+                total,
+                totalPages: Math.ceil(total / limit),
+                hasNext: page * limit < total,
+                hasPrev: page > 1,
+              },
+            };
+          }
+
+          const allJobs = await this.jobsRepository.findAllWithRelations(whereClause);
+          console.log(`[findAll] Non-paginated: Found ${allJobs.length} jobs`);
+          return { data: allJobs };
+        },
+        2 * 60 * 1000, // 2 minutes TTL (jobs are more dynamic)
+      );
     } catch (error) {
       console.error('[findAll] Error:', error);
       if (process.env.NODE_ENV === 'development') {
@@ -437,9 +454,16 @@ export class JobsService implements IJobsService {
         },
       });
 
-      // Invalidate cleaner's cache after status update
+      // OPTIMIZATION: Invalidate cleaner's cache and jobs cache after status update
       try {
         await this.cacheService.del(`dashboard:${userId}:CLEANER`);
+        const businessId = await this.businessIdService.getBusinessIdOrNull(
+          userId,
+          userRole as any,
+        );
+        if (businessId) {
+          await this.cacheService.delPattern(`jobs:${businessId}:cleaner:${userId}*`);
+        }
       } catch {
         // Cache invalidation failure shouldn't break job update
       }
@@ -488,9 +512,13 @@ export class JobsService implements IJobsService {
       },
     });
 
-    // Invalidate cache after update
+    // OPTIMIZATION: Invalidate cache after update
     try {
       await this.cacheService.del(`dashboard:${userId}:${userRole || 'OWNER'}`);
+      const businessId = await this.businessIdService.getBusinessIdOrNull(userId, userRole as any);
+      if (businessId) {
+        await this.cacheService.delPattern(`jobs:${businessId}*`);
+      }
       if (updatedJob.cleanerId && updatedJob.cleanerId !== userId) {
         await this.cacheService.del(`dashboard:${updatedJob.cleanerId}:CLEANER`);
       }
@@ -512,9 +540,13 @@ export class JobsService implements IJobsService {
 
     await this.jobsRepository.delete(jobId);
 
-    // Invalidate cache after deletion
+    // OPTIMIZATION: Invalidate cache after deletion
     try {
       await this.cacheService.del(`dashboard:${userId}:${userRole || 'OWNER'}`);
+      const businessId = await this.businessIdService.getBusinessIdOrNull(userId, userRole as any);
+      if (businessId) {
+        await this.cacheService.delPattern(`jobs:${businessId}*`);
+      }
       if (job.cleanerId && job.cleanerId !== userId) {
         await this.cacheService.del(`dashboard:${job.cleanerId}:CLEANER`);
       }

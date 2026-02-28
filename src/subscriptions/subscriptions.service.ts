@@ -1,12 +1,14 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { BusinessService } from '../business/business.service';
+import { CacheService } from '../cache/cache.service';
 
 @Injectable()
 export class SubscriptionsService {
   constructor(
     private prisma: PrismaService,
     private businessService: BusinessService,
+    private cacheService: CacheService,
   ) {}
 
   async getSubscription(userId: string) {
@@ -15,22 +17,30 @@ export class SubscriptionsService {
       throw new NotFoundException('Business not found');
     }
 
-    const subscription = await this.prisma.subscription.findUnique({
-      where: { businessId: business.id },
-      include: {
-        usage: {
-          orderBy: [{ year: 'desc' }, { month: 'desc' }],
-          take: 12, // Last 12 months
-        },
+    // OPTIMIZATION: Cache subscription data (5 minutes TTL)
+    const cacheKey = `subscription:${business.id}`;
+    return this.cacheService.wrap(
+      cacheKey,
+      async () => {
+        const subscription = await this.prisma.subscription.findUnique({
+          where: { businessId: business.id },
+          include: {
+            usage: {
+              orderBy: [{ year: 'desc' }, { month: 'desc' }],
+              take: 12, // Last 12 months
+            },
+          },
+        });
+
+        if (!subscription) {
+          // Create default 1-month trial subscription
+          return this.createDefaultSubscription(business.id);
+        }
+
+        return subscription;
       },
-    });
-
-    if (!subscription) {
-      // Create default 1-month trial subscription
-      return this.createDefaultSubscription(business.id);
-    }
-
-    return subscription;
+      5 * 60 * 1000, // 5 minutes TTL (subscription changes rarely)
+    );
   }
 
   async createDefaultSubscription(businessId: string) {
@@ -48,6 +58,10 @@ export class SubscriptionsService {
         currentPeriodEnd: trialEnd,
       },
     });
+
+    // OPTIMIZATION: Invalidate cache after creation
+    await this.cacheService.del(`subscription:${businessId}`);
+    await this.cacheService.del(`subscription-usage:${businessId}`);
 
     return subscription;
   }
@@ -70,7 +84,7 @@ export class SubscriptionsService {
       throw new NotFoundException('Subscription not found');
     }
 
-    return this.prisma.subscription.update({
+    const updated = await this.prisma.subscription.update({
       where: { id: subscription.id },
       data: {
         planType,
@@ -78,6 +92,12 @@ export class SubscriptionsService {
         currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
       },
     });
+
+    // OPTIMIZATION: Invalidate cache after update
+    await this.cacheService.del(`subscription:${business.id}`);
+    await this.cacheService.del(`subscription-usage:${business.id}`);
+
+    return updated;
   }
 
   async cancelSubscription(userId: string) {
@@ -94,12 +114,18 @@ export class SubscriptionsService {
       throw new NotFoundException('Subscription not found');
     }
 
-    return this.prisma.subscription.update({
+    const cancelled = await this.prisma.subscription.update({
       where: { id: subscription.id },
       data: {
         status: 'CANCELLED',
       },
     });
+
+    // OPTIMIZATION: Invalidate cache after cancellation
+    await this.cacheService.del(`subscription:${business.id}`);
+    await this.cacheService.del(`subscription-usage:${business.id}`);
+
+    return cancelled;
   }
 
   async trackJobUsage(businessId: string) {
@@ -147,40 +173,48 @@ export class SubscriptionsService {
       throw new NotFoundException('Business not found');
     }
 
-    const subscription = await this.prisma.subscription.findUnique({
-      where: { businessId: business.id },
-      include: {
-        usage: {
-          orderBy: [{ year: 'desc' }, { month: 'desc' }],
-          take: 12,
-        },
+    // OPTIMIZATION: Cache usage stats (2 minutes TTL - more dynamic)
+    const cacheKey = `subscription-usage:${business.id}`;
+    return this.cacheService.wrap(
+      cacheKey,
+      async () => {
+        const subscription = await this.prisma.subscription.findUnique({
+          where: { businessId: business.id },
+          include: {
+            usage: {
+              orderBy: [{ year: 'desc' }, { month: 'desc' }],
+              take: 12,
+            },
+          },
+        });
+
+        if (!subscription) {
+          return {
+            currentPlan: 'SOLO',
+            status: 'TRIALING',
+            usage: [],
+            monthlyLimit: this.getPlanLimit('SOLO'),
+            cleanerLimit: this.getCleanerLimit('SOLO'),
+          };
+        }
+
+        const currentMonth = new Date().getMonth() + 1;
+        const currentYear = new Date().getFullYear();
+        const currentUsage = subscription.usage.find(
+          (u) => u.month === currentMonth && u.year === currentYear,
+        );
+
+        return {
+          currentPlan: subscription.planType,
+          status: subscription.status,
+          currentMonthUsage: currentUsage?.jobCount || 0,
+          monthlyLimit: this.getPlanLimit(subscription.planType),
+          cleanerLimit: this.getCleanerLimit(subscription.planType),
+          usage: subscription.usage,
+        };
       },
-    });
-
-    if (!subscription) {
-      return {
-        currentPlan: 'SOLO',
-        status: 'TRIALING',
-        usage: [],
-        monthlyLimit: this.getPlanLimit('SOLO'),
-        cleanerLimit: this.getCleanerLimit('SOLO'),
-      };
-    }
-
-    const currentMonth = new Date().getMonth() + 1;
-    const currentYear = new Date().getFullYear();
-    const currentUsage = subscription.usage.find(
-      (u) => u.month === currentMonth && u.year === currentYear,
+      2 * 60 * 1000, // 2 minutes TTL (usage updates more frequently)
     );
-
-    return {
-      currentPlan: subscription.planType,
-      status: subscription.status,
-      currentMonthUsage: currentUsage?.jobCount || 0,
-      monthlyLimit: this.getPlanLimit(subscription.planType),
-      cleanerLimit: this.getCleanerLimit(subscription.planType),
-      usage: subscription.usage,
-    };
   }
 
   getCleanerLimit(planType: string): number {

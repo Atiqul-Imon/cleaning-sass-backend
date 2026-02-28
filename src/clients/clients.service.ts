@@ -8,6 +8,7 @@ import { ClientDomainService } from './domain/client.domain.service';
 import { BusinessIdDomainService } from '../shared/domain/business-id.domain.service';
 import { IClientsService } from './interfaces/clients.service.interface';
 import { ClientEntity, ClientWithRelations } from './entities/client.entity';
+import { CacheService } from '../cache/cache.service';
 
 @Injectable()
 export class ClientsService implements IClientsService {
@@ -17,6 +18,7 @@ export class ClientsService implements IClientsService {
     private businessService: BusinessService,
     private clientDomainService: ClientDomainService,
     private businessIdService: BusinessIdDomainService,
+    private cacheService: CacheService,
   ) {}
 
   async create(userId: string, data: CreateClientDto): Promise<ClientEntity> {
@@ -35,7 +37,12 @@ export class ClientsService implements IClientsService {
     // Transform data using domain service
     const clientData = this.clientDomainService.transformClientData(data, business.id);
 
-    return this.clientsRepository.create(clientData);
+    const client = await this.clientsRepository.create(clientData);
+
+    // OPTIMIZATION: Invalidate clients cache after creation
+    await this.cacheService.delPattern(`clients:${business.id}*`);
+
+    return client;
   }
 
   async findAll(
@@ -46,33 +53,46 @@ export class ClientsService implements IClientsService {
     try {
       const businessId = await this.businessIdService.getBusinessId(userId, userRole as any);
 
-      // If pagination is requested, return paginated response
-      if (pagination?.page || pagination?.limit) {
-        const page = pagination.page || 1;
-        const limit = Math.min(pagination.limit || 20, 100); // Max 100 items per page
-        const skip = (page - 1) * limit;
+      // OPTIMIZATION: Generate cache key based on pagination
+      const cacheKey =
+        pagination?.page || pagination?.limit
+          ? `clients:${businessId}:page:${pagination.page || 1}:limit:${pagination.limit || 20}`
+          : `clients:${businessId}:all`;
 
-        const [data, total] = await Promise.all([
-          this.clientsRepository.findAllWithRelations({ businessId }, { skip, take: limit }),
-          this.clientsRepository.count({ businessId }),
-        ]);
+      // Try to get from cache first (3 minutes TTL)
+      return await this.cacheService.wrap(
+        cacheKey,
+        async () => {
+          // If pagination is requested, return paginated response
+          if (pagination?.page || pagination?.limit) {
+            const page = pagination.page || 1;
+            const limit = Math.min(pagination.limit || 20, 100); // Max 100 items per page
+            const skip = (page - 1) * limit;
 
-        return {
-          data,
-          pagination: {
-            page,
-            limit,
-            total,
-            totalPages: Math.ceil(total / limit),
-            hasNext: page * limit < total,
-            hasPrev: page > 1,
-          },
-        };
-      }
+            const [data, total] = await Promise.all([
+              this.clientsRepository.findAllWithRelations({ businessId }, { skip, take: limit }),
+              this.clientsRepository.count({ businessId }),
+            ]);
 
-      // Return all results (backward compatibility) with unified list shape
-      const data = await this.clientsRepository.findAllWithRelations({ businessId });
-      return { data };
+            return {
+              data,
+              pagination: {
+                page,
+                limit,
+                total,
+                totalPages: Math.ceil(total / limit),
+                hasNext: page * limit < total,
+                hasPrev: page > 1,
+              },
+            };
+          }
+
+          // Return all results (backward compatibility) with unified list shape
+          const data = await this.clientsRepository.findAllWithRelations({ businessId });
+          return { data };
+        },
+        3 * 60 * 1000, // 3 minutes TTL
+      );
     } catch {
       // If business doesn't exist yet, return empty list shape
       return pagination
@@ -123,7 +143,13 @@ export class ClientsService implements IClientsService {
     // Transform data using domain service
     const updateData = this.clientDomainService.transformClientUpdateData(data);
 
-    return this.clientsRepository.update(clientId, updateData);
+    const client = await this.clientsRepository.update(clientId, updateData);
+
+    // OPTIMIZATION: Invalidate clients cache after update
+    const businessId = await this.businessIdService.getBusinessId(userId, userRole as any);
+    await this.cacheService.delPattern(`clients:${businessId}*`);
+
+    return client;
   }
 
   async remove(userId: string, clientId: string, userRole?: string): Promise<void> {
@@ -131,6 +157,10 @@ export class ClientsService implements IClientsService {
     await this.findOne(userId, clientId, userRole);
 
     await this.clientsRepository.delete(clientId);
+
+    // OPTIMIZATION: Invalidate clients cache after deletion
+    const businessId = await this.businessIdService.getBusinessId(userId, userRole as any);
+    await this.cacheService.delPattern(`clients:${businessId}*`);
   }
 
   async getJobHistory(userId: string, clientId: string, userRole?: string) {
