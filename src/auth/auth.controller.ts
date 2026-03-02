@@ -1,4 +1,13 @@
-import { Controller, Get, UseGuards, Post, Body, HttpException, HttpStatus } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  UseGuards,
+  Post,
+  Put,
+  Body,
+  HttpException,
+  HttpStatus,
+} from '@nestjs/common';
 import type { AuthenticatedUser } from '../shared/types/user.types';
 import { AuthGuard } from './auth.guard';
 import { CurrentUser } from './auth.decorator';
@@ -19,16 +28,23 @@ export class AuthController {
   @Get('me')
   @UseGuards(AuthGuard)
   async getMe(@CurrentUser() user: AuthenticatedUser) {
-    let role = await this.authService.getUserRole(user.id);
-    if (role === null) {
+    let profile = await this.authService.getUserProfile(user.id);
+    if (profile === null) {
       await this.authService.createOrUpdateUser(user.id, user.email || '', UserRole.OWNER);
-      role = await this.authService.getUserRole(user.id);
+      profile = await this.authService.getUserProfile(user.id);
     }
     return {
       id: user.id,
       email: user.email,
-      role: role || 'OWNER',
+      name: profile?.name ?? null,
+      role: profile?.role || 'OWNER',
     };
+  }
+
+  @Put('profile')
+  @UseGuards(AuthGuard)
+  async updateProfile(@CurrentUser() user: AuthenticatedUser, @Body('name') name: string | null) {
+    return this.authService.updateProfile(user.id, name);
   }
 
   @Post('set-role')

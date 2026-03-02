@@ -39,6 +39,22 @@ export class AuthService {
     return user?.role || null;
   }
 
+  async getUserProfile(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, email: true, name: true, role: true },
+    });
+    return user;
+  }
+
+  async updateProfile(userId: string, name: string | null) {
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: { name: name?.trim() || null },
+      select: { id: true, email: true, name: true, role: true },
+    });
+  }
+
   async setUserRole(userId: string, role: UserRole) {
     return this.prisma.user.upsert({
       where: { id: userId },
