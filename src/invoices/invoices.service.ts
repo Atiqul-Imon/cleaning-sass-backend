@@ -38,11 +38,14 @@ export class InvoicesService implements IInvoicesService {
     const vatAmount = this.invoiceDomainService.calculateVAT(amount, business.vatEnabled);
     const totalAmount = this.invoiceDomainService.calculateTotal(amount, business.vatEnabled);
 
-    // Generate invoice number using domain service
-    const invoiceCount = await this.prisma.invoice.count({
+    // Generate invoice number: globally unique + per-business sequential (INV-550e8400-000001)
+    const perBusinessCount = await this.prisma.invoice.count({
       where: { businessId: business.id },
     });
-    const invoiceNumber = this.invoiceDomainService.generateInvoiceNumber(invoiceCount);
+    const invoiceNumber = this.invoiceDomainService.generateInvoiceNumber(
+      business.id,
+      perBusinessCount,
+    );
 
     // Calculate due date using domain service
     const dueDate = this.invoiceDomainService.calculateDueDate(30);

@@ -74,9 +74,14 @@ export class InvoiceDomainService {
 
   /**
    * Generate invoice number
+   * Format: INV-{businessPrefix}-{seq}
+   * - businessPrefix: first 8 chars of business ID (ensures global uniqueness)
+   * - seq: per-business sequence (000001, 000002, ...) for ordering within business
    */
-  generateInvoiceNumber(invoiceCount: number): string {
-    return `INV-${String(invoiceCount + 1).padStart(6, '0')}`;
+  generateInvoiceNumber(businessId: string, perBusinessCount: number): string {
+    const prefix = businessId.replace(/-/g, '').slice(0, 8);
+    const seq = String(perBusinessCount + 1).padStart(6, '0');
+    return `INV-${prefix}-${seq}`;
   }
 
   /**
