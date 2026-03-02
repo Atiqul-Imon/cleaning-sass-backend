@@ -359,4 +359,167 @@ export class AdminService {
       },
     };
   }
+
+  /**
+   * Update business details (admin only)
+   */
+  async updateBusiness(
+    businessId: string,
+    data: {
+      name?: string;
+      phone?: string;
+      address?: string;
+      vatEnabled?: boolean;
+      vatNumber?: string;
+      invoiceTemplate?: string;
+    },
+  ) {
+    const business = await this.prisma.business.findUnique({
+      where: { id: businessId },
+    });
+
+    if (!business) {
+      throw new NotFoundException('Business not found');
+    }
+
+    return this.prisma.business.update({
+      where: { id: businessId },
+      data,
+      include: {
+        user: {
+          select: {
+            id: true,
+            email: true,
+            role: true,
+          },
+        },
+      },
+    });
+  }
+
+  /**
+   * Delete business with CASCADE deletion (admin only)
+   * This will delete:
+   * - All jobs associated with this business
+   * - All clients associated with this business
+   * - All invoices associated with this business
+   * - All cleaners (BusinessCleaner records) associated with this business
+   * - The subscription associated with this business
+   * - Payment records associated with this business
+   * - The business itself
+   * - The owner user account
+   */
+  async deleteBusiness(businessId: string) {
+    const business = await this.prisma.business.findUnique({
+      where: { id: businessId },
+      include: {
+        user: {
+          select: {
+            id: true,
+            email: true,
+            role: true,
+          },
+        },
+        _count: {
+          select: {
+            jobs: true,
+            clients: true,
+            invoices: true,
+            cleaners: true,
+          },
+        },
+      },
+    });
+
+    if (!business) {
+      throw new NotFoundException('Business not found');
+    }
+
+    // Use transaction to ensure all deletions succeed or none do
+    return await this.prisma.$transaction(async (prisma) => {
+      const userId = business.userId;
+
+      // 1. Delete job photos first (they reference jobs)
+      await prisma.jobPhoto.deleteMany({
+        where: { job: { businessId } },
+      });
+
+      // 2. Delete job checklists (they reference jobs)
+      await prisma.jobChecklist.deleteMany({
+        where: { job: { businessId } },
+      });
+
+      // 3. Delete job reports (they reference jobs)
+      await prisma.jobReport.deleteMany({
+        where: { job: { businessId } },
+      });
+
+      // 4. Delete jobs
+      await prisma.job.deleteMany({
+        where: { businessId },
+      });
+
+      // 5. Delete invoices
+      await prisma.invoice.deleteMany({
+        where: { businessId },
+      });
+
+      // 6. Delete clients
+      await prisma.client.deleteMany({
+        where: { businessId },
+      });
+
+      // 7. Delete job usage records
+      await prisma.jobUsage.deleteMany({
+        where: { subscription: { businessId } },
+      });
+
+      // 8. Delete subscription
+      await prisma.subscription.deleteMany({
+        where: { businessId },
+      });
+
+      // 9. Delete upgrade requests
+      await prisma.upgradeRequest.deleteMany({
+        where: { businessId },
+      });
+
+      // 10. Delete cleaner associations (BusinessCleaner)
+      // Note: This removes cleaners from the business but doesn't delete the cleaner users
+      // Cleaner users can still exist and be assigned to other businesses
+      await prisma.businessCleaner.deleteMany({
+        where: { businessId },
+      });
+
+      // 11. Delete any cleaner invites for this business
+      await prisma.cleanerInvite.deleteMany({
+        where: { businessId },
+      });
+
+      // 12. Delete the business
+      const deletedBusiness = await prisma.business.delete({
+        where: { id: businessId },
+      });
+
+      // 13. Delete the owner user account
+      await prisma.user.delete({
+        where: { id: userId },
+      });
+
+      return {
+        success: true,
+        deletedBusiness: {
+          id: deletedBusiness.id,
+          name: deletedBusiness.name,
+          ownerEmail: business.user.email,
+        },
+        deletedCounts: {
+          jobs: business._count.jobs,
+          clients: business._count.clients,
+          invoices: business._count.invoices,
+          cleaners: business._count.cleaners,
+        },
+      };
+    });
+  }
 }

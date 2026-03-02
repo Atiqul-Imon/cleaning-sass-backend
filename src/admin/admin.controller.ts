@@ -1,4 +1,15 @@
-import { Controller, Get, Param, Query, Patch, Post, Body, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Param,
+  Query,
+  Patch,
+  Post,
+  Body,
+  UseGuards,
+  Put,
+  Delete,
+} from '@nestjs/common';
 import { AdminService } from './admin.service';
 import { AuthGuard } from '../auth/auth.guard';
 import { RolesGuard, Roles } from '../auth/roles.guard';
@@ -93,6 +104,27 @@ export class AdminController {
   @Get('businesses/:id')
   async getBusinessDetails(@Param('id') id: string) {
     return this.adminService.getBusinessDetails(id);
+  }
+
+  @Put('businesses/:id')
+  async updateBusiness(
+    @Param('id') id: string,
+    @Body()
+    body: {
+      name?: string;
+      phone?: string;
+      address?: string;
+      vatEnabled?: boolean;
+      vatNumber?: string;
+      invoiceTemplate?: string;
+    },
+  ) {
+    return this.adminService.updateBusiness(id, body);
+  }
+
+  @Delete('businesses/:id')
+  async deleteBusiness(@Param('id') id: string) {
+    return this.adminService.deleteBusiness(id);
   }
 
   @Get('users')
