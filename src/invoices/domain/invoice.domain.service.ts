@@ -85,10 +85,16 @@ export class InvoiceDomainService {
   }
 
   /**
-   * Calculate due date (default 30 days from now)
+   * Calculate due date from base date
+   * @param days 0 = same day, 1, 3, 7, 15, 30 etc.
+   * @param baseDate defaults to now
    */
-  calculateDueDate(days: number = 30): Date {
-    return new Date(Date.now() + days * 24 * 60 * 60 * 1000);
+  calculateDueDate(days: number = 30, baseDate?: Date): Date {
+    const base = baseDate ? new Date(baseDate) : new Date();
+    base.setHours(0, 0, 0, 0);
+    const due = new Date(base);
+    due.setDate(due.getDate() + days);
+    return due;
   }
 
   /**

@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../prisma/prisma.service';
 import { EmailService } from './email.service';
+import { formatDate } from '../common/date-format';
 
 @Injectable()
 export class RemindersService {
@@ -92,15 +93,8 @@ export class RemindersService {
               <div class="invoice-details">
                 <p><strong>Invoice Number:</strong> ${invoice.invoiceNumber}</p>
                 <p><strong>Amount Due:</strong> <span class="amount">£${Number(invoice.totalAmount).toFixed(2)}</span></p>
-                <p><strong>Due Date:</strong> ${new Date(invoice.dueDate).toLocaleDateString(
-                  'en-GB',
-                  {
-                    day: 'numeric',
-                    month: 'long',
-                    year: 'numeric',
-                  },
-                )}</p>
-                ${invoice.job ? `<p><strong>Service:</strong> ${invoice.job.type} - ${new Date(invoice.job.scheduledDate).toLocaleDateString('en-GB')}</p>` : ''}
+                <p><strong>Due Date:</strong> ${formatDate(invoice.dueDate)}</p>
+                ${invoice.job ? `<p><strong>Service:</strong> ${invoice.job.type} - ${formatDate(invoice.job.scheduledDate)}</p>` : ''}
               </div>
               <p>Please arrange payment at your earliest convenience. If you have already made payment, please disregard this reminder.</p>
               <p>Thank you for your business!</p>
@@ -125,12 +119,8 @@ This is a friendly reminder that you have an outstanding invoice:
 
 Invoice Number: ${invoice.invoiceNumber}
 Amount Due: £${Number(invoice.totalAmount).toFixed(2)}
-Due Date: ${new Date(invoice.dueDate).toLocaleDateString('en-GB', {
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric',
-    })}
-${invoice.job ? `Service: ${invoice.job.type} - ${new Date(invoice.job.scheduledDate).toLocaleDateString('en-GB')}` : ''}
+Due Date: ${formatDate(invoice.dueDate)}
+${invoice.job ? `Service: ${invoice.job.type} - ${formatDate(invoice.job.scheduledDate)}` : ''}
 
 Please arrange payment at your earliest convenience. If you have already made payment, please disregard this reminder.
 

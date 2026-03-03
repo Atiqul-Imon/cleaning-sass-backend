@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import PDFDocument from 'pdfkit';
+import { formatDate } from '../common/date-format';
 
 interface InvoiceWithRelations {
   id: string;
@@ -127,13 +128,10 @@ export class PdfService {
         doc.fontSize(9).font('Helvetica').fillColor('#ffffff').fillOpacity(0.85);
 
         doc.text('Invoice Date', 400, 75, { align: 'right', width: 145 });
-        doc
-          .font('Helvetica-Bold')
-          .fillOpacity(1)
-          .text(new Date(invoice.createdAt).toLocaleDateString('en-GB'), 400, 88, {
-            align: 'right',
-            width: 145,
-          });
+        doc.font('Helvetica-Bold').fillOpacity(1).text(formatDate(invoice.createdAt), 400, 88, {
+          align: 'right',
+          width: 145,
+        });
 
         // Reset fill color and opacity for rest of document
         doc.fillColor(colors.text).fillOpacity(1);
@@ -200,7 +198,7 @@ export class PdfService {
           .fontSize(12)
           .font('Helvetica-Bold')
           .fillColor(colors.primary)
-          .text(new Date(invoice.dueDate).toLocaleDateString('en-GB'), 400, 250, {
+          .text(formatDate(invoice.dueDate), 400, 250, {
             align: 'right',
             width: 145,
           });
@@ -219,7 +217,7 @@ export class PdfService {
             .font('Helvetica')
             .fillColor(colors.text)
             .text(
-              `${invoice.job.type.replace('_', ' ')} • ${new Date(invoice.job.scheduledDate).toLocaleDateString('en-GB')}${
+              `${invoice.job.type.replace('_', ' ')} • ${formatDate(invoice.job.scheduledDate)}${
                 invoice.job.scheduledTime ? ` at ${invoice.job.scheduledTime}` : ''
               }`,
               50,
@@ -314,11 +312,7 @@ export class PdfService {
             .fontSize(9)
             .font('Helvetica')
             .fillColor(colors.secondary)
-            .text(
-              `Paid on ${new Date(invoice.paidAt).toLocaleDateString('en-GB')}`,
-              statusX,
-              summaryY + 18,
-            );
+            .text(`Paid on ${formatDate(invoice.paidAt)}`, statusX, summaryY + 18);
 
           if (invoice.paymentMethod) {
             doc.text(`via ${invoice.paymentMethod.replace('_', ' ')}`, statusX, summaryY + 33);

@@ -8,7 +8,12 @@ export interface IInvoicesService {
   /**
    * Create an invoice from a job
    */
-  createFromJob(userId: string, jobId: string, amount: number): Promise<InvoiceEntity>;
+  createFromJob(
+    userId: string,
+    jobId: string,
+    amount: number,
+    dueDate?: string,
+  ): Promise<InvoiceEntity>;
 
   /**
    * Find all invoices for a user

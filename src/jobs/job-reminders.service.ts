@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../prisma/prisma.service';
 import { EmailService } from '../reminders/email.service';
+import { formatDate } from '../common/date-format';
 
 @Injectable()
 export class JobRemindersService {
@@ -117,13 +118,7 @@ export class JobRemindersService {
   }
 
   private async sendReminder(job: any) {
-    const scheduledDate = new Date(job.scheduledDate);
-    const formattedDate = scheduledDate.toLocaleDateString('en-GB', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    });
+    const formattedDate = formatDate(job.scheduledDate, true);
     const formattedTime = job.scheduledTime || 'Time TBD';
 
     // Send to business owner

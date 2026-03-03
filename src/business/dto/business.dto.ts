@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsBoolean } from 'class-validator';
+import { IsString, IsOptional, IsBoolean, IsInt, Min, Max, IsIn } from 'class-validator';
 
 export class CreateBusinessDto {
   @IsString()
@@ -23,6 +23,13 @@ export class CreateBusinessDto {
   @IsString()
   @IsOptional()
   invoiceTemplate?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(90)
+  @IsIn([0, 1, 3, 7, 15, 30])
+  invoiceDueDateDays?: number;
 }
 
 export class UpdateBusinessDto {
@@ -49,4 +56,11 @@ export class UpdateBusinessDto {
   @IsString()
   @IsOptional()
   invoiceTemplate?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(90)
+  @IsIn([0, 1, 3, 7, 15, 30])
+  invoiceDueDateDays?: number;
 }

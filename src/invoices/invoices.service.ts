@@ -17,7 +17,12 @@ export class InvoicesService implements IInvoicesService {
     private invoiceDomainService: InvoiceDomainService,
   ) {}
 
-  async createFromJob(userId: string, jobId: string, amount: number): Promise<InvoiceEntity> {
+  async createFromJob(
+    userId: string,
+    jobId: string,
+    amount: number,
+    dueDate?: string, // ISO date string, optional
+  ): Promise<InvoiceEntity> {
     // Validate using domain service
     const validation = this.invoiceDomainService.validateCreateInvoice(amount);
     if (!validation.valid) {
@@ -47,8 +52,18 @@ export class InvoicesService implements IInvoicesService {
       perBusinessCount,
     );
 
-    // Calculate due date using domain service
-    const dueDate = this.invoiceDomainService.calculateDueDate(30);
+    // Due date: use provided, or business default, or 30 days
+    const days = business.invoiceDueDateDays ?? 30;
+    let calculatedDueDate: Date;
+    if (dueDate) {
+      const parsed = new Date(dueDate);
+      if (Number.isNaN(parsed.getTime())) {
+        throw new BadRequestException('Invalid due date format');
+      }
+      calculatedDueDate = parsed;
+    } else {
+      calculatedDueDate = this.invoiceDomainService.calculateDueDate(days);
+    }
 
     const invoice = await this.prisma.invoice.create({
       data: {
@@ -59,7 +74,7 @@ export class InvoicesService implements IInvoicesService {
         amount,
         vatAmount,
         totalAmount,
-        dueDate,
+        dueDate: calculatedDueDate,
       },
     });
 

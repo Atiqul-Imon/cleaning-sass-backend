@@ -52,14 +52,15 @@ model CleanerInvite {
 }
 
 model Business {
-  id              String            @id @default(uuid())
-  userId          String            @unique @map("user_id")
-  name            String
-  phone           String?
-  address         String?
-  vatEnabled      Boolean           @default(false) @map("vat_enabled")
-  vatNumber       String?           @map("vat_number")
-  invoiceTemplate String            @default("classic") @map("invoice_template")
+  id                   String            @id @default(uuid())
+  userId               String            @unique @map("user_id")
+  name                 String
+  phone                String?
+  address              String?
+  vatEnabled           Boolean           @default(false) @map("vat_enabled")
+  vatNumber            String?           @map("vat_number")
+  invoiceTemplate      String            @default("classic") @map("invoice_template")
+  invoiceDueDateDays   Int               @default(30) @map("invoice_due_date_days") // 0=same day, 1, 3, 7, 15, 30
   createdAt       DateTime          @default(now()) @map("created_at")
   updatedAt       DateTime          @updatedAt @map("updated_at")
   user            User              @relation(fields: [userId], references: [id], onDelete: Cascade)

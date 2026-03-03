@@ -22,8 +22,9 @@ export class InvoicesController {
     @CurrentUser() user: AuthenticatedUser,
     @Param('jobId') jobId: string,
     @Body('amount') amount: number,
+    @Body('dueDate') dueDate?: string, // Optional ISO date (yyyy-MM-dd)
   ) {
-    return this.invoicesService.createFromJob(user.id, jobId, amount);
+    return this.invoicesService.createFromJob(user.id, jobId, amount, dueDate);
   }
 
   @Get()

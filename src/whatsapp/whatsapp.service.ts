@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { formatDate } from '../common/date-format';
 
 @Injectable()
 export class WhatsAppService {
@@ -47,14 +48,10 @@ export class WhatsAppService {
     }
 
     message += `*Total:* £${Number(invoice.totalAmount).toFixed(2)}\n\n`;
-    message += `*Due Date:* ${new Date(invoice.dueDate).toLocaleDateString('en-GB', {
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric',
-    })}\n`;
+    message += `*Due Date:* ${formatDate(invoice.dueDate)}\n`;
 
     if (job) {
-      message += `*Service:* ${job.type.replace('_', ' ')} - ${new Date(job.scheduledDate).toLocaleDateString('en-GB')}\n`;
+      message += `*Service:* ${job.type.replace('_', ' ')} - ${formatDate(job.scheduledDate)}\n`;
     }
 
     message += `\n*Status:* ${invoice.status === 'PAID' ? '✅ Paid' : '⏳ Unpaid'}\n\n`;
@@ -85,11 +82,7 @@ export class WhatsAppService {
       message = `📸 *Before Photos - Job Update*\n\n`;
       message += `Hello ${client.name},\n\n`;
       message += `Here are the before photos from your cleaning job:\n\n`;
-      message += `*Job Date:* ${new Date(job.scheduledDate).toLocaleDateString('en-GB', {
-        day: 'numeric',
-        month: 'long',
-        year: 'numeric',
-      })}\n`;
+      message += `*Job Date:* ${formatDate(job.scheduledDate)}\n`;
       if (job.scheduledTime) {
         message += `*Time:* ${job.scheduledTime}\n`;
       }
@@ -97,11 +90,7 @@ export class WhatsAppService {
       message = `✨ *After Photos - Job Complete*\n\n`;
       message += `Hello ${client.name},\n\n`;
       message += `Your cleaning job is complete! Here are the after photos:\n\n`;
-      message += `*Job Date:* ${new Date(job.scheduledDate).toLocaleDateString('en-GB', {
-        day: 'numeric',
-        month: 'long',
-        year: 'numeric',
-      })}\n`;
+      message += `*Job Date:* ${formatDate(job.scheduledDate)}\n`;
       if (job.scheduledTime) {
         message += `*Time:* ${job.scheduledTime}\n`;
       }
@@ -110,11 +99,7 @@ export class WhatsAppService {
       message = `📸 *Job Photos*\n\n`;
       message += `Hello ${client.name},\n\n`;
       message += `Here are the photos from your cleaning job:\n\n`;
-      message += `*Job Date:* ${new Date(job.scheduledDate).toLocaleDateString('en-GB', {
-        day: 'numeric',
-        month: 'long',
-        year: 'numeric',
-      })}\n`;
+      message += `*Job Date:* ${formatDate(job.scheduledDate)}\n`;
       if (job.scheduledTime) {
         message += `*Time:* ${job.scheduledTime}\n`;
       }
@@ -152,11 +137,7 @@ export class WhatsAppService {
     message += `Hello ${client.name},\n\n`;
     message += `Your cleaning job has been completed!\n\n`;
     message += `*Job Details:*\n`;
-    message += `• Date: ${new Date(job.scheduledDate).toLocaleDateString('en-GB', {
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric',
-    })}\n`;
+    message += `• Date: ${formatDate(job.scheduledDate)}\n`;
     if (job.scheduledTime) {
       message += `• Time: ${job.scheduledTime}\n`;
     }
