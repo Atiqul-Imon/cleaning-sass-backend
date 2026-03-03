@@ -35,8 +35,18 @@ export interface IInvoicesService {
   update(
     userId: string,
     invoiceId: string,
-    data: { status?: 'PAID' | 'UNPAID'; paymentMethod?: 'BANK_TRANSFER' | 'CARD' | 'CASH' },
+    data: {
+      amount?: number;
+      dueDate?: string;
+      status?: 'PAID' | 'UNPAID';
+      paymentMethod?: 'BANK_TRANSFER' | 'CARD' | 'CASH';
+    },
   ): Promise<InvoiceEntity>;
+
+  /**
+   * Delete an invoice (UNPAID only)
+   */
+  delete(userId: string, invoiceId: string): Promise<void>;
 
   /**
    * Mark invoice as paid

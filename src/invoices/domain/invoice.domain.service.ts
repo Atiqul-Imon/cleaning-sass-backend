@@ -37,6 +37,8 @@ export class InvoiceDomainService {
    * Validate invoice update data
    */
   validateUpdateInvoice(data: {
+    amount?: number;
+    dueDate?: string;
     status?: 'PAID' | 'UNPAID';
     paymentMethod?: 'BANK_TRANSFER' | 'CARD' | 'CASH';
   }): { valid: boolean; errors?: string[] } {
@@ -45,6 +47,20 @@ export class InvoiceDomainService {
     // Validate payment method if marking as paid
     if (data.status === 'PAID' && !data.paymentMethod) {
       errors.push('Payment method is required when marking invoice as paid');
+    }
+
+    if (data.amount !== undefined) {
+      const amountValidation = this.validateCreateInvoice(data.amount);
+      if (!amountValidation.valid && amountValidation.errors) {
+        errors.push(...amountValidation.errors);
+      }
+    }
+
+    if (data.dueDate) {
+      const parsed = new Date(data.dueDate);
+      if (Number.isNaN(parsed.getTime())) {
+        errors.push('Invalid due date format');
+      }
     }
 
     return {

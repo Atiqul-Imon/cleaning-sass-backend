@@ -249,25 +249,64 @@ export class InvoicesService implements IInvoicesService {
   async update(
     userId: string,
     invoiceId: string,
-    data: { status?: 'PAID' | 'UNPAID'; paymentMethod?: 'BANK_TRANSFER' | 'CARD' | 'CASH' },
+    data: {
+      amount?: number;
+      dueDate?: string;
+      status?: 'PAID' | 'UNPAID';
+      paymentMethod?: 'BANK_TRANSFER' | 'CARD' | 'CASH';
+    },
   ): Promise<InvoiceEntity> {
-    // Validate using domain service
     const validation = this.invoiceDomainService.validateUpdateInvoice(data);
     if (!validation.valid) {
-      throw new Error(validation.errors?.join(', ') || 'Validation failed');
+      throw new BadRequestException(validation.errors?.join(', ') || 'Validation failed');
     }
 
-    await this.findOne(userId, invoiceId);
+    const invoice = await this.findOne(userId, invoiceId);
+
+    // Amount and dueDate can only be edited when UNPAID
+    if ((data.amount !== undefined || data.dueDate !== undefined) && invoice.status === 'PAID') {
+      throw new BadRequestException('Cannot edit amount or due date on a paid invoice');
+    }
+
+    const updateData: Record<string, unknown> = {};
+
+    if (data.status !== undefined) {
+      updateData.status = data.status;
+      if (data.status === 'PAID') {
+        updateData.paidAt = new Date();
+      }
+    }
+    if (data.paymentMethod !== undefined) {
+      updateData.paymentMethod = data.paymentMethod;
+    }
+
+    if (data.amount !== undefined) {
+      const business = await this.businessService.findByUserId(userId);
+      if (!business) {
+        throw new NotFoundException('Business not found');
+      }
+      const vatAmount = this.invoiceDomainService.calculateVAT(
+        data.amount,
+        business.vatEnabled ?? false,
+      );
+      const totalAmount = this.invoiceDomainService.calculateTotal(
+        data.amount,
+        business.vatEnabled ?? false,
+      );
+      updateData.amount = data.amount;
+      updateData.vatAmount = vatAmount;
+      updateData.totalAmount = totalAmount;
+    }
+
+    if (data.dueDate !== undefined) {
+      updateData.dueDate = new Date(data.dueDate);
+    }
 
     const updated = await this.prisma.invoice.update({
       where: { id: invoiceId },
-      data: {
-        ...data,
-        ...(data.status === 'PAID' && { paidAt: new Date() }),
-      },
+      data: updateData,
     });
 
-    // Convert Prisma Decimal to number
     return {
       ...updated,
       amount: Number(updated.amount),
@@ -284,6 +323,16 @@ export class InvoicesService implements IInvoicesService {
     return this.update(userId, invoiceId, {
       status: 'PAID',
       paymentMethod: paymentMethod as 'BANK_TRANSFER' | 'CARD' | 'CASH',
+    });
+  }
+
+  async delete(userId: string, invoiceId: string): Promise<void> {
+    const invoice = await this.findOne(userId, invoiceId);
+    if (invoice.status === 'PAID') {
+      throw new BadRequestException('Cannot delete a paid invoice');
+    }
+    await this.prisma.invoice.delete({
+      where: { id: invoiceId },
     });
   }
 
